@@ -65,10 +65,6 @@ export default function CreerCompte() {
         <Logo variant="login" />
         <h1>Créer un compte administrateur</h1>
         <p className="sous-titre">SAN-DIA DISTRIBUTION</p>
-        <p className="message-info">
-          Choisis un <strong>identifiant court</strong> (ex. coumba) + ton e-mail.
-          À la connexion, utilise cet identifiant ou ton e-mail — pas seulement ton prénom.
-        </p>
 
         <form onSubmit={handleSubmit} className="formulaire">
           <label htmlFor="nom_complet">Nom complet (affichage)</label>
@@ -83,7 +79,6 @@ export default function CreerCompte() {
           <input
             id="nom_utilisateur"
             autoComplete="username"
-            placeholder="ex. coumba (pas le prénom seul si tu veux un autre id)"
             value={form.nom_utilisateur}
             onChange={(e) => maj('nom_utilisateur', e.target.value)}
             required

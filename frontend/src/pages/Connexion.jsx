@@ -76,7 +76,6 @@ export default function Connexion({ onConnexion }) {
             <input
               id="nom_utilisateur"
               autoComplete="username"
-              placeholder="ex. coumba ou ton@email.com"
               value={nomUtilisateur}
               onChange={(e) => setNomUtilisateur(e.target.value)}
               required
@@ -101,10 +100,6 @@ export default function Connexion({ onConnexion }) {
             <p className="lien-auth">
               Nouvel administrateur ?{' '}
               <Link to="/creer-compte">Créer un compte</Link>
-            </p>
-            <p className="meta">
-              Astuce : ce n’est pas le prénom. Utilise l’identifiant choisi à la création
-              (ou ton e-mail).
             </p>
           </form>
         ) : (

@@ -95,7 +95,6 @@ export default function Admins() {
               Identifiant de connexion
               <input
                 required
-                placeholder="ex. coumba"
                 value={form.nom_utilisateur}
                 onChange={(e) => setForm({ ...form, nom_utilisateur: e.target.value })}
               />
