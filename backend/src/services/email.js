@@ -1,3 +1,4 @@
+const dns = require('dns');
 const nodemailer = require('nodemailer');
 
 function smtpConfigure() {
@@ -11,6 +12,13 @@ function smtpConfigure() {
     port: Number(process.env.SMTP_PORT || 587),
     secure: process.env.SMTP_SECURE === 'true',
     auth: { user, pass },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
+    // Render : Gmail en IPv6 → ENETUNREACH ; forcer IPv4
+    lookup: (hostname, _opts, cb) => {
+      dns.lookup(hostname, { family: 4 }, cb);
+    },
   });
 }
 
@@ -28,13 +36,24 @@ async function envoyerEmail({ to, subject, text, html }) {
     );
   }
 
-  await transport.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    text,
-    html: html || undefined,
-  });
+  try {
+    await transport.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      text,
+      html: html || undefined,
+    });
+  } catch (err) {
+    const msg = String(err.message || err);
+    console.error('[MAIL] Échec envoi:', msg);
+    if (/ENETUNREACH|ETIMEDOUT|ECONNREFUSED|ESOCKET/i.test(msg)) {
+      throw new Error(
+        'Impossible d’envoyer le code par e-mail (réseau SMTP). Réessaie dans une minute.'
+      );
+    }
+    throw new Error(`Envoi e-mail impossible : ${msg}`);
+  }
 
   return { mode: 'email', email: to };
 }

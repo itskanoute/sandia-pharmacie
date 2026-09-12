@@ -1,0 +1,51 @@
+# Tout-en-un : site + MySQL (pour un VPS Hostinger / Contabo / OVH)
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-sandia_root_change_me}
+      MYSQL_DATABASE: pharmacie_mali
+      MYSQL_USER: sandia
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sandia_pass_change_me}
+    volumes:
+      - sandia_mysql:/var/lib/mysql
+      - ./database/schema_mysql.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-sandia_root_change_me}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "80:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: sandia
+      DB_PASSWORD: ${MYSQL_PASSWORD:-sandia_pass_change_me}
+      DB_NAME: pharmacie_mali
+      JWT_SECRET: ${JWT_SECRET:-change-moi-pharmacie-mali-secret}
+      JWT_EXPIRES_IN: 8h
+      AUTH_ALLOW_DEV_CODE: ${AUTH_ALLOW_DEV_CODE:-false}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-Administrateur}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  sandia_mysql:
