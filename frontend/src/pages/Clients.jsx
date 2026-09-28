@@ -1,3 +1,6 @@
+/**
+ * Clients.jsx — Fiches clients : factures, proformas, dettes et paiements.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -14,13 +17,14 @@ import {
 import { formatDate, formatFcfa } from '../utils/format';
 
 export default function Clients() {
-  const [clients, setClients] = useState([]);
-  const [ficheId, setFicheId] = useState(null);
-  const [factures, setFactures] = useState([]);
+  const [clients, setClients] = useState([]); // liste principale
+  // Client sélectionné pour la fiche détaillée (factures, dettes…)
+  const [ficheId, setFicheId] = useState(null); // id ou null = pas de fiche
+  const [factures, setFactures] = useState([]); // filtrées par ficheId
   const [proformas, setProformas] = useState([]);
   const [dettes, setDettes] = useState([]);
-  const [form, setForm] = useState(null);
-  const [montant, setMontant] = useState('');
+  const [form, setForm] = useState(null); // création / édition client
+  const [montant, setMontant] = useState(''); // paiement rapide depuis fiche
   const [facturePaiementId, setFacturePaiementId] = useState('');
   const [message, setMessage] = useState('');
   const [erreur, setErreur] = useState('');
@@ -33,6 +37,7 @@ export default function Clients() {
     chargerListe().catch((e) => setErreur(e.message));
   }, []);
 
+  // Charge l’historiel commercial du client ouvert
   useEffect(() => {
     if (!ficheId) return;
     Promise.all([
@@ -50,6 +55,7 @@ export default function Clients() {
 
   const client = clients.find((c) => c.id === ficheId) || null;
 
+  // Agrégats factures pour la fiche client
   const totaux = useMemo(() => {
     const totalFacture = factures.reduce((s, f) => s + Number(f.montant_total || 0), 0);
     const totalPaye = factures.reduce((s, f) => s + Number(f.montant_paye || 0), 0);
@@ -57,6 +63,7 @@ export default function Clients() {
     return { totalFacture, totalPaye, totalRestant };
   }, [factures]);
 
+  // Crée ou met à jour la fiche client
   async function enregistrerClient(e) {
     e.preventDefault();
     try {
@@ -69,6 +76,7 @@ export default function Clients() {
     }
   }
 
+  // Encaissement depuis la fiche client
   async function payer() {
     const m = Math.round(Number(montant));
     if (!facturePaiementId || !m) {
@@ -206,6 +214,8 @@ export default function Clients() {
       <PageHeader
         titre="Clients"
         sousTitre="Fiches clients"
+        pdfCible="#zone-pdf"
+        pdfNom="clients"
         actions={
           <div className="actions-form">
             <Link to="/revendeurs" className="bouton-secondaire">
@@ -250,7 +260,7 @@ export default function Clients() {
         </form>
       ) : null}
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead><tr><th>Nom</th><th>Téléphone</th><th>Type</th><th></th></tr></thead>
           <tbody>

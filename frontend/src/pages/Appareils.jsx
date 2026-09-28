@@ -1,9 +1,13 @@
+/**
+ * Appareils.jsx — Matériel médical : inventaire, prix et seuils d’alerte.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge, libelleStatut, statutTone } from '../components/Badge';
 import { apiAppareils, apiCreerAppareil, apiMajAppareil } from '../api';
 import { formatFcfa } from '../utils/format';
 
+// Modèle formulaire appareil médical
 const VIDE = {
   nom: '',
   reference: '',
@@ -18,12 +22,13 @@ const VIDE = {
 };
 
 export default function Appareils() {
-  const [liste, setListe] = useState([]);
-  const [form, setForm] = useState(null);
-  const [editionId, setEditionId] = useState(null);
+  const [liste, setListe] = useState([]); // inventaire appareils
+  const [form, setForm] = useState(null); // panneau création / édition
+  const [editionId, setEditionId] = useState(null); // id MySQL si modification
   const [erreur, setErreur] = useState('');
-  const [chargement, setChargement] = useState(true);
+  const [chargement, setChargement] = useState(true); // chargement initial tableau
 
+  // Inventaire matériel médical depuis l’API
   async function charger() {
     setChargement(true);
     try {
@@ -42,6 +47,7 @@ export default function Appareils() {
   async function enregistrer(e) {
     e.preventDefault();
     try {
+      // Branche création vs mise à jour
       if (editionId) await apiMajAppareil(editionId, form);
       else await apiCreerAppareil(form);
       setForm(null);
@@ -56,6 +62,8 @@ export default function Appareils() {
       <PageHeader
         titre="Appareils médicaux"
         sousTitre="Stock · prix FCFA"
+        pdfCible="#zone-pdf"
+        pdfNom="appareils"
         actions={
           <button
             type="button"
@@ -104,7 +112,7 @@ export default function Appareils() {
         </form>
       ) : null}
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead>
             <tr>

@@ -2,6 +2,7 @@
  * Génère le prochain numéro (ex. PF-000001) via sequences_numerotation.
  * À appeler dans une transaction (connexion dédiée).
  */
+/** Incrémente atomiquement la séquence (verrou FOR UPDATE) et formate le numéro. */
 async function prochainNumero(connection, codeSequence) {
   const [rows] = await connection.execute(
     `SELECT code, prefixe, prochain_numero
@@ -28,4 +29,5 @@ async function prochainNumero(connection, codeSequence) {
   return numero;
 }
 
+/** Export utilitaire numérotation facturation / ventes. */
 module.exports = { prochainNumero };

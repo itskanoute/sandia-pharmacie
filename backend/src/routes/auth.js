@@ -1,13 +1,51 @@
+/**
+ * Authentification SAN-DIA : statut, création d’admins, login + code e-mail, JWT.
+ */
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
 const { envoyerCodeConnexion } = require('../services/email');
+const { assertJwtSecret, autoriseCodeDev } = require('../config/security');
 
 const router = express.Router();
+const JWT_SECRET = assertJwtSecret();
 
+/** Anti brute-force sur login / OTP / bootstrap admin */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_AUTH_MAX || 30),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de tentatives. Réessaie dans 15 minutes.' },
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_OTP_MAX || 20),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de tentatives de code. Réessaie plus tard.' },
+});
+
+/** Échecs OTP par utilisateur (mémoire process) — invalide le code après N essais */
+const echecsOtp = new Map();
+const MAX_OTP_ESSAIS = 5;
+
+function compterEchecOtp(utilisateurId) {
+  const n = (echecsOtp.get(utilisateurId) || 0) + 1;
+  echecsOtp.set(utilisateurId, n);
+  return n;
+}
+
+function resetEchecsOtp(utilisateurId) {
+  echecsOtp.delete(utilisateurId);
+}
+
+/** Masque l’e-mail pour l’UI (ex. ab***@domaine.com). */
 function masquerEmail(email) {
   if (!email || !email.includes('@')) return '***';
   const [local, domaine] = email.split('@');
@@ -15,10 +53,12 @@ function masquerEmail(email) {
   return `${debut}***@${domaine}`;
 }
 
+/** Code OTP 6 chiffres pour la double authentification e-mail. */
 function genererCode() {
   return String(crypto.randomInt(100000, 999999));
 }
 
+/** Émet le JWT session après validation du code. */
 function creerToken(utilisateur) {
   return jwt.sign(
     {
@@ -26,11 +66,23 @@ function creerToken(utilisateur) {
       nom_utilisateur: utilisateur.nom_utilisateur,
       role: utilisateur.role_code,
     },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
 }
 
+/** Nombre d’admins actifs (bootstrap / contrôle création publique). */
+async function compterAdminsActifs() {
+  const [rows] = await pool.execute(
+    `SELECT COUNT(*) AS n
+     FROM utilisateurs u
+     INNER JOIN roles r ON r.id = u.role_id
+     WHERE r.code = 'ADMIN' AND u.actif = 1`
+  );
+  return Number(rows[0]?.n || 0);
+}
+
+/** Champs utilisateur renvoyés au frontend (sans hash mot de passe). */
 function profilPublic(u) {
   return {
     id: u.id,
@@ -62,6 +114,7 @@ router.get('/statut', async (_req, res) => {
   }
 });
 
+/** Logique partagée création admin (premier compte ou POST /admins). */
 async function insererCompteAdmin(body) {
   const nomComplet = String(body.nom_complet || '').trim();
   const nomUtilisateur = String(body.nom_utilisateur || '').trim();
@@ -134,16 +187,28 @@ async function insererCompteAdmin(body) {
 }
 
 /**
- * Création d’un compte administrateur (plusieurs admins autorisés).
- * Chaque admin a son e-mail → code de connexion + alertes.
+ * Bootstrap UNIQUEMENT : créer le 1er admin tant qu’aucun n’existe.
+ * Dès qu’un admin existe → 403 (utiliser POST /admins authentifié).
  */
-router.post('/creer-admin', async (req, res) => {
+router.post('/creer-admin', authLimiter, async (req, res) => {
   try {
+    const nb = await compterAdminsActifs();
+    if (nb > 0) {
+      return res.status(403).json({
+        message:
+          'Un administrateur existe déjà. Connecte-toi puis ajoute un compte depuis Administrateurs.',
+      });
+    }
     const cree = await insererCompteAdmin(req.body);
     return res.status(201).json({
       message:
         'Compte administrateur créé. Vous recevrez le code de connexion et les alertes sur cet e-mail.',
-      admin: cree,
+      admin: {
+        id: cree.id,
+        nom_utilisateur: cree.nom_utilisateur,
+        nom_complet: cree.nom_complet,
+        email: cree.email,
+      },
     });
   } catch (erreur) {
     if (erreur.status) {
@@ -199,12 +264,14 @@ router.post('/admins', authentifier, async (req, res) => {
  * Étape 1 : identifiants. Seul un ADMIN actif peut se connecter.
  * Envoie un code par e-mail (pas de JWT encore).
  */
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
+  const messageIdIncorrect =
+    'Identifiants incorrects. Vérifie l’identifiant (ou l’e-mail) et le mot de passe.';
+
   try {
     const identifiant = String(
       req.body.nom_utilisateur || req.body.identifiant || req.body.email || ''
-    )
-      .trim();
+    ).trim();
     const motDePasse = String(req.body.mot_de_passe || '');
 
     if (!identifiant || !motDePasse) {
@@ -236,28 +303,9 @@ router.post('/login', async (req, res) => {
       throw err;
     }
 
+    // Message générique : évite l’énumération d’utilisateurs
     if (!utilisateur || !Number(utilisateur.actif)) {
-      // Aide si la personne tape son prénom / nom complet au lieu de l'identifiant
-      const [homonymes] = await pool.execute(
-        `SELECT nom_utilisateur, email
-         FROM utilisateurs
-         WHERE actif = 1 AND LOWER(nom_complet) = LOWER(?)
-         LIMIT 3`,
-        [identifiant]
-      );
-      if (homonymes.length) {
-        const exemples = homonymes
-          .map((h) => h.nom_utilisateur || h.email)
-          .filter(Boolean)
-          .join(' » ou « ');
-        return res.status(401).json({
-          message: `« ${identifiant} » est un nom affiché, pas l’identifiant de connexion. Connecte-toi avec : « ${exemples} » (ou ton e-mail).`,
-        });
-      }
-      return res.status(401).json({
-        message:
-          'Identifiants incorrects. Vérifie l’identifiant (ou l’e-mail) et le mot de passe, ou crée un compte.',
-      });
+      return res.status(401).json({ message: messageIdIncorrect });
     }
 
     const motDePasseValide = await bcrypt.compare(
@@ -265,9 +313,7 @@ router.post('/login', async (req, res) => {
       utilisateur.mot_de_passe_hash
     );
     if (!motDePasseValide) {
-      return res.status(401).json({
-        message: 'Mot de passe incorrect pour ce compte.',
-      });
+      return res.status(401).json({ message: messageIdIncorrect });
     }
 
     if (utilisateur.role_code !== 'ADMIN') {
@@ -279,12 +325,12 @@ router.post('/login', async (req, res) => {
     if (!utilisateur.email) {
       return res.status(400).json({
         message:
-          'Aucune adresse e-mail sur ce compte. Un admin doit renseigner l’e-mail dans Administrateurs / phpMyAdmin.',
+          'Aucune adresse e-mail sur ce compte. Un admin doit renseigner l’e-mail dans Administrateurs.',
       });
     }
 
     const code = genererCode();
-    const codeHash = await bcrypt.hash(code, 8);
+    const codeHash = await bcrypt.hash(code, 10);
     const expireAt = new Date(Date.now() + 10 * 60 * 1000);
 
     try {
@@ -298,6 +344,7 @@ router.post('/login', async (req, res) => {
          VALUES (?, ?, ?)`,
         [utilisateur.id, codeHash, expireAt]
       );
+      resetEchecsOtp(utilisateur.id);
     } catch (err) {
       if (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'ER_BAD_FIELD_ERROR') {
         return res.status(503).json({
@@ -326,10 +373,11 @@ router.post('/login', async (req, res) => {
       email_masque: masquerEmail(utilisateur.email),
     };
 
-    if (envoi.mode === 'dev') {
+    // Code visible UNIQUEMENT hors production + AUTH_ALLOW_DEV_CODE=true
+    if (envoi.mode === 'dev' && autoriseCodeDev()) {
       reponse.dev_code = code;
       reponse.message +=
-        ' (mode démo : code aussi affiché ici car SMTP non configuré)';
+        ' (mode démo local : code aussi affiché ici car e-mail non configuré)';
     }
 
     return res.json(reponse);
@@ -344,13 +392,18 @@ router.post('/login', async (req, res) => {
 /**
  * Étape 2 : vérification du code e-mail → JWT.
  */
-router.post('/verifier-code', async (req, res) => {
+router.post('/verifier-code', otpLimiter, async (req, res) => {
   try {
     const utilisateurId = Number(req.body.utilisateur_id);
     const code = String(req.body.code || '').trim();
 
     if (!utilisateurId || !code) {
       return res.status(400).json({ message: 'Code et utilisateur obligatoires.' });
+    }
+
+    // Refuse les codes non numériques / trop longs (anti fuzzing)
+    if (!/^\d{6}$/.test(code)) {
+      return res.status(401).json({ message: 'Code incorrect.' });
     }
 
     const [users] = await pool.execute(
@@ -380,17 +433,31 @@ router.post('/verifier-code', async (req, res) => {
       return res.status(401).json({ message: 'Aucun code en attente. Reconnectez-vous.' });
     }
     if (new Date(enregistre.expire_at) < new Date()) {
+      await pool.execute(`UPDATE codes_connexion SET utilise = 1 WHERE id = ?`, [
+        enregistre.id,
+      ]);
       return res.status(401).json({ message: 'Code expiré. Reconnectez-vous.' });
     }
 
     const ok = await bcrypt.compare(code, enregistre.code_hash);
     if (!ok) {
+      const n = compterEchecOtp(utilisateurId);
+      if (n >= MAX_OTP_ESSAIS) {
+        await pool.execute(`UPDATE codes_connexion SET utilise = 1 WHERE id = ?`, [
+          enregistre.id,
+        ]);
+        resetEchecsOtp(utilisateurId);
+        return res.status(401).json({
+          message: 'Trop d’essais incorrects. Demande un nouveau code.',
+        });
+      }
       return res.status(401).json({ message: 'Code incorrect.' });
     }
 
     await pool.execute(`UPDATE codes_connexion SET utilise = 1 WHERE id = ?`, [
       enregistre.id,
     ]);
+    resetEchecsOtp(utilisateurId);
 
     const token = creerToken(utilisateur);
     return res.json({
@@ -404,6 +471,7 @@ router.post('/verifier-code', async (req, res) => {
   }
 });
 
+/** GET /me — Profil de l’utilisateur connecté (JWT). */
 router.get('/me', authentifier, async (req, res) => {
   try {
     const [rows] = await pool.execute(
@@ -429,4 +497,5 @@ router.get('/me', authentifier, async (req, res) => {
   }
 });
 
+/** Montage sous /api/auth dans server.js */
 module.exports = router;

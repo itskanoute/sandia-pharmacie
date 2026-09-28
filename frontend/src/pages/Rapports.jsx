@@ -1,16 +1,21 @@
+/**
+ * Rapports.jsx — Synthèses et export Excel (tableau de bord et finance).
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge, libelleStatut, statutTone } from '../components/Badge';
 import { apiDashboard, apiFinance } from '../api';
 import { formatDate, formatFcfa } from '../utils/format';
-import { exporterRapportExcel, exporterRapportPdf } from '../utils/exportRapport';
+import { exporterRapportExcel } from '../utils/exportRapport';
 
 export default function Rapports() {
-  const [dash, setDash] = useState(null);
-  const [finance, setFinance] = useState(null);
+  // Données parallèles dashboard + finance pour la synthèse
+  const [dash, setDash] = useState(null); // stats dashboard
+  const [finance, setFinance] = useState(null); // stats finance
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
 
+  // Double appel API au montage pour alimenter les tableaux
   useEffect(() => {
     Promise.all([apiDashboard(), apiFinance()])
       .then(([d, f]) => {
@@ -20,17 +25,7 @@ export default function Rapports() {
       .catch((e) => setErreur(e.message));
   }, []);
 
-  function exporterPdf() {
-    setErreur('');
-    setMessage('');
-    try {
-      exporterRapportPdf(dash, finance);
-      setMessage('Fenêtre d’impression ouverte — choisis « Enregistrer au format PDF ».');
-    } catch (e) {
-      setErreur(e.message);
-    }
-  }
-
+  // Génère un classeur .xlsx via la librairie xlsx
   function exporterExcel() {
     setErreur('');
     setMessage('');
@@ -67,21 +62,19 @@ export default function Rapports() {
       <PageHeader
         titre="Rapports"
         sousTitre="Synthèse d’activité · export PDF et Excel"
+        pdfCible="#zone-pdf"
+        pdfNom="rapports"
         actions={
-          <div className="actions-form">
-            <button type="button" className="bouton-secondaire" onClick={exporterExcel}>
-              Exporter Excel
-            </button>
-            <button type="button" className="bouton-principal" onClick={exporterPdf}>
-              Exporter PDF
-            </button>
-          </div>
+          <button type="button" className="bouton-secondaire" onClick={exporterExcel}>
+            Exporter Excel
+          </button>
         }
       />
 
       {message ? <p className="message-succes">{message}</p> : null}
       {erreur ? <p className="message-erreur">{erreur}</p> : null}
 
+      <div id="zone-pdf">
       <div className="kpi-grid">
         <div className="kpi">
           <span>CA facturé</span>
@@ -182,6 +175,7 @@ export default function Rapports() {
           </table>
         </div>
       </section>
+      </div>
     </div>
   );
 }

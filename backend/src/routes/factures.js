@@ -1,3 +1,7 @@
+/**
+ * routes/factures.js — Consultation factures et liste des dettes clients.
+ * Préfixe API : /api/factures (création via ventes ou pro formas).
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -7,6 +11,7 @@ const { chargerFacture } = require('../services/facturesService');
 const router = express.Router();
 router.use(authentifier);
 
+/** GET / — Liste avec filtres statut_paiement et client_id. */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -37,7 +42,7 @@ router.get(
   })
 );
 
-/** Dettes = factures non entièrement payées */
+/** GET /dettes — Factures avec montant_reste > 0 (écran Dettes / relances). */
 router.get(
   '/dettes',
   asyncHandler(async (req, res) => {
@@ -62,6 +67,7 @@ router.get(
   })
 );
 
+/** GET /:id — Détail complet (lignes + historique paiements). */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -71,4 +77,5 @@ router.get(
   })
 );
 
+/** Router factures → /api/factures */
 module.exports = router;

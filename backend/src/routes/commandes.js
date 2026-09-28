@@ -1,3 +1,7 @@
+/**
+ * routes/commandes.js — Commandes fournisseurs (achats).
+ * Préfixe API : /api/commandes
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -7,6 +11,7 @@ const { prochainNumero } = require('../utils/numeros');
 const router = express.Router();
 router.use(authentifier);
 
+/** Crée la ligne sequences_numerotation si absente (première commande). */
 async function assurerSequence(connection, code, prefixe) {
   await connection.execute(
     `INSERT IGNORE INTO sequences_numerotation (code, prefixe, prochain_numero)
@@ -15,6 +20,7 @@ async function assurerSequence(connection, code, prefixe) {
   );
 }
 
+/** Charge en-tête commande + lignes_commande. */
 async function chargerCommande(id) {
   const [rows] = await pool.execute(
     `SELECT c.*, f.nom AS fournisseur_nom
@@ -31,6 +37,7 @@ async function chargerCommande(id) {
   return { ...rows[0], lignes };
 }
 
+/** GET / — Liste des commandes avec nom fournisseur. */
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
@@ -45,6 +52,7 @@ router.get(
   })
 );
 
+/** GET /:id — Détail commande et lignes. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -54,6 +62,7 @@ router.get(
   })
 );
 
+/** POST / — Création transactionnelle (numéro CMD-*, lignes normalisées). */
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -136,4 +145,5 @@ router.post(
   })
 );
 
+/** Router commandes → /api/commandes */
 module.exports = router;

@@ -1,3 +1,13 @@
+/**
+ * App.jsx — Point d’entrée de l’interface SAN-DIA DISTRIBUTION
+ * ------------------------------------------------------------
+ * Rôle :
+ *  - Gérer la session administrateur (token JWT + profil)
+ *  - Définir les routes publiques (connexion / création de compte)
+ *  - Protéger les pages métier derrière le Layout (menu latéral)
+ *
+ * Données : l’API backend + MySQL (Aiven en production / local en dev).
+ */
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -23,12 +33,16 @@ import Alertes from './pages/Alertes';
 import Rapports from './pages/Rapports';
 import Admins from './pages/Admins';
 import Parametres from './pages/Parametres';
+import Carnet from './pages/Carnet';
 import './App.css';
 
 export default function App() {
-  const [utilisateur, setUtilisateur] = useState(null);
-  const [pret, setPret] = useState(false);
+  // Utilisateur connecté (null = non authentifié)
+  const [utilisateur, setUtilisateur] = useState(null); // profil admin connecté
+  // false tant que la vérification de session n’est pas terminée
+  const [pret, setPret] = useState(false); // évite flash routes protégées
 
+  // Au démarrage : restaurer la session locale puis valider le token auprès de l’API
   useEffect(() => {
     async function init() {
       const stocke = getUtilisateurStocke();
@@ -36,15 +50,18 @@ export default function App() {
         setUtilisateur(stocke);
       }
 
+      // Pas de token → page de connexion
       if (!getToken()) {
         setPret(true);
         return;
       }
 
       try {
+        // Token encore valide ? récupère le profil à jour
         const profil = await apiMe();
         setUtilisateur(profil);
       } catch {
+        // Token expiré / invalide → déconnexion
         effacerSession();
         setUtilisateur(null);
       } finally {
@@ -55,15 +72,18 @@ export default function App() {
     init();
   }, []);
 
+  /** Appelé après une connexion réussie (code e-mail validé) */
   function handleConnexion(user) {
     setUtilisateur(user);
   }
 
+  /** Déconnexion : efface le token et le profil du navigateur */
   function handleDeconnexion() {
     effacerSession();
     setUtilisateur(null);
   }
 
+  // Évite un flash de contenu avant de savoir si l’utilisateur est connecté
   if (!pret) {
     return (
       <div className="page-connexion">
@@ -74,7 +94,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      {/* Routage : pages publiques vs shell Layout protégé */}
       <Routes>
+        {/* ---------- Routes publiques ---------- */}
         <Route
           path="/connexion"
           element={
@@ -90,6 +112,7 @@ export default function App() {
           element={utilisateur ? <Navigate to="/" replace /> : <CreerCompte />}
         />
 
+        {/* ---------- Routes protégées (admin connecté) ---------- */}
         <Route
           element={
             utilisateur ? (
@@ -117,9 +140,11 @@ export default function App() {
           <Route path="alertes" element={<Alertes />} />
           <Route path="rapports" element={<Rapports />} />
           <Route path="admins" element={<Admins />} />
+          <Route path="carnet" element={<Carnet />} />
           <Route path="parametres" element={<Parametres />} />
         </Route>
 
+        {/* Toute URL inconnue → accueil ou connexion */}
         <Route
           path="*"
           element={<Navigate to={utilisateur ? '/' : '/connexion'} replace />}

@@ -1,3 +1,7 @@
+/**
+ * routes/parametres.js — Paramètres établissement (SAN-DIA) et seuils alertes.
+ * Préfixe API : /api/parametres — ligne unique id=1.
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -6,17 +10,19 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const router = express.Router();
 router.use(authentifier);
 
+/** Valeurs par défaut affichées si champs vides en base. */
 const SANDIA = {
   nom_pharmacie: 'SAN-DIA DISTRIBUTION',
   activite: 'Matériels médicaux, réactifs de laboratoire, Commerce général',
   adresse: 'BAMAKO SEBENICORO CEMA 2',
-  telephone: '73 36 11 10 / 69 67 05 69',
+  telephone: '72 17 75 97 / 93 90 15 01',
   nina: '32409194667357E',
   nina_libelle: 'Mali -Bko 2024-A-10188 (NINA)',
   nif: '084148655C',
   centre_impots: 'Commune 4',
 };
 
+/** GET / — Lecture parametres + repli sur constantes SANDIA. */
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
@@ -39,6 +45,7 @@ router.get(
   })
 );
 
+/** PUT / — Mise à jour ; blocs NIF/NINA/activité tolèrent schéma partiel (try/catch). */
 router.put(
   '/',
   asyncHandler(async (req, res) => {
@@ -97,4 +104,5 @@ router.put(
   })
 );
 
+/** Router paramètres → /api/parametres */
 module.exports = router;

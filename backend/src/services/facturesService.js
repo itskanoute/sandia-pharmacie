@@ -1,5 +1,14 @@
+/**
+ * facturesService.js — Chargement complet d’une facture (en-tête, lignes, paiements).
+ */
 const { pool } = require('../config/db');
 
+/**
+ * Récupère une facture par id avec jointures client/vente et détail des lignes + paiements.
+ * @param {number|string} id — Identifiant facture
+ * @param {object} [connection=pool] — Connexion ou pool (transactions)
+ * @returns {Promise<object|null>}
+ */
 async function chargerFacture(id, connection = pool) {
   const [rows] = await connection.execute(
     `SELECT f.*, c.nom AS client_nom, c.telephone AS client_telephone,
@@ -29,4 +38,5 @@ async function chargerFacture(id, connection = pool) {
   return { ...rows[0], lignes, paiements };
 }
 
+/** Service lecture facture (routes factures, paiements). */
 module.exports = { chargerFacture };

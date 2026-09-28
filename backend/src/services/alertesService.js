@@ -1,3 +1,7 @@
+/**
+ * Agrégation des alertes métier (stock, lots, péremption, dettes)
+ * et notification par e-mail à tous les administrateurs actifs.
+ */
 const { pool } = require('../config/db');
 const { envoyerAlertesAdmin } = require('./email');
 const {
@@ -5,6 +9,7 @@ const {
   SEUIL_STOCK_LOT,
 } = require('../config/alertes');
 
+/** Lit le seuil péremption depuis parametres (sinon constante config). */
 async function lireJoursPeremption() {
   const [rows] = await pool.execute(
     `SELECT jours_alerte_peremption FROM parametres ORDER BY id ASC LIMIT 1`
@@ -13,10 +18,12 @@ async function lireJoursPeremption() {
   return j > 0 ? j : JOURS_ALERTE_PEREMPTION_DEFAUT;
 }
 
+/** Charge les quatre listes d’alertes avec seuils lus en base / config. */
 async function chargerAlertesCompletes() {
   const joursPeremption = await lireJoursPeremption();
   const seuil = SEUIL_STOCK_LOT;
 
+  // Médicaments actifs dont la somme des lots ≤ seuil stock
   const [stock] = await pool.execute(
     `SELECT m.id, m.nom, m.reference, ? AS seuil_alerte,
             COALESCE(s.stock, 0) AS stock_disponible,
@@ -31,6 +38,7 @@ async function chargerAlertesCompletes() {
     [seuil, seuil]
   );
 
+  // Lots individuels encore en stock mais sous le seuil unitaire
   const [lots] = await pool.execute(
     `SELECT l.id, l.numero_lot, l.quantite_disponible, l.date_peremption,
             m.nom AS medicament_nom, m.reference AS medicament_reference,
@@ -43,6 +51,7 @@ async function chargerAlertesCompletes() {
     [seuil, seuil]
   );
 
+  // Lots dont la date de péremption est dans la fenêtre joursPeremption
   const [peremption] = await pool.execute(
     `SELECT l.id, l.numero_lot, l.date_peremption, l.quantite_disponible,
             m.nom AS medicament_nom,
@@ -56,6 +65,7 @@ async function chargerAlertesCompletes() {
     [joursPeremption]
   );
 
+  // Factures avec solde client restant dû
   const [dettes] = await pool.execute(
     `SELECT f.id, f.numero, f.montant_reste, f.date_facture, c.nom AS client_nom
      FROM factures f
@@ -123,6 +133,7 @@ async function notifierAlertesAdmin() {
     };
   }
 
+  // Envoi individuel : un e-mail par compte admin (échec isolé par destinataire)
   const envois = [];
   for (const admin of admins) {
     try {
@@ -152,6 +163,7 @@ async function notifierAlertesAdmin() {
   };
 }
 
+/** Exports pour stats, server.js (cron) et tests manuels. */
 module.exports = {
   chargerAlertesCompletes,
   emailAdminActif,

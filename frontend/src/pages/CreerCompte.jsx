@@ -1,8 +1,13 @@
+/**
+ * CreerCompte.jsx — Inscription du PREMIER administrateur uniquement (bootstrap).
+ * Dès qu’un admin existe, l’API refuse (403) : créer d’autres comptes via Administrateurs.
+ */
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { apiCreerAdmin } from '../api';
 
+// Valeurs par défaut du formulaire d’inscription
 const INITIAL = {
   nom_complet: '',
   nom_utilisateur: '',
@@ -14,15 +19,18 @@ const INITIAL = {
 
 export default function CreerCompte() {
   const navigate = useNavigate();
-  const [form, setForm] = useState(INITIAL);
-  const [erreur, setErreur] = useState('');
-  const [succes, setSucces] = useState('');
-  const [chargement, setChargement] = useState(false);
+  // Champs du formulaire d’inscription premier admin
+  const [form, setForm] = useState(INITIAL); // formulaire contrôlé
+  const [erreur, setErreur] = useState(''); // validation locale ou API
+  const [succes, setSucces] = useState(''); // message avant redirect connexion
+  const [chargement, setChargement] = useState(false); // bouton submit
 
+  // Mise à jour générique d’un champ du formulaire contrôlé
   function maj(champ, valeur) {
     setForm((f) => ({ ...f, [champ]: valeur }));
   }
 
+  // Validation locale puis POST /api/auth/creer-admin
   async function handleSubmit(event) {
     event.preventDefault();
     setErreur('');

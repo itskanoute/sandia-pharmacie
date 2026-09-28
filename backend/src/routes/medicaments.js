@@ -1,3 +1,7 @@
+/**
+ * routes/medicaments.js — Catalogue médicaments et stock agrégé (lots).
+ * Préfixe API : /api/medicaments
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -7,6 +11,7 @@ const { stockMedicament } = require('../utils/stock');
 const router = express.Router();
 router.use(authentifier);
 
+/** GET / — Liste avec recherche q, filtre statut (défaut : actif) et stock_disponible calculé. */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -42,6 +47,7 @@ router.get(
   })
 );
 
+/** GET /:id — Fiche + stock et liste des lots triés par péremption. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -62,6 +68,7 @@ router.get(
   })
 );
 
+/** POST / — Création ; forme/dosage en UPDATE optionnel si migration facturation appliquée. */
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -106,6 +113,7 @@ router.post(
   })
 );
 
+/** PUT /:id — Mise à jour prix, seuil, statut ; retourne stock recalculé. */
 router.put(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -156,4 +164,5 @@ router.put(
   })
 );
 
+/** Router médicaments → /api/medicaments */
 module.exports = router;

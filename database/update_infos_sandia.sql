@@ -12,7 +12,7 @@ SET
   nom_pharmacie = 'SAN-DIA DISTRIBUTION',
   activite = 'Matériels médicaux, réactifs de laboratoire, Commerce général',
   adresse = 'BAMAKO SEBENICORO CEMA 2',
-  telephone = '73 36 11 10 / 69 67 05 69',
+  telephone = '72 17 75 97 / 93 90 15 01',
   nina = '32409194667357E',
   nina_libelle = 'Mali -Bko 2024-A-10188 (NINA)',
   nif = '084148655C',

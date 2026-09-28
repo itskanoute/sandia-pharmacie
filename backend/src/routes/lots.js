@@ -1,3 +1,7 @@
+/**
+ * routes/lots.js — Consultation lots médicaments et entrée manuelle de stock.
+ * Préfixe API : /api/lots
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -6,6 +10,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const router = express.Router();
 router.use(authentifier);
 
+/** GET / — Lots avec jours_restants et drapeaux alerte péremption / stock lot. */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -92,6 +97,22 @@ router.post(
 
       await connection.commit();
 
+      // Si le lot est déjà dans la fenêtre de péremption → e-mail immédiat aux admins
+      try {
+        const { lireJoursPeremption, notifierAlertesAdmin } = require('../services/alertesService');
+        const jours = await lireJoursPeremption();
+        const restants = Math.ceil(
+          (new Date(datePeremption).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+        );
+        if (restants <= jours) {
+          notifierAlertesAdmin().catch((e) =>
+            console.warn('[ALERTES] Après entrée lot:', e.message)
+          );
+        }
+      } catch (e) {
+        console.warn('[ALERTES] Skip notif lot:', e.message);
+      }
+
       const [rows] = await pool.execute(
         `SELECT l.*, m.nom AS medicament_nom
          FROM lots_medicaments l
@@ -112,4 +133,5 @@ router.post(
   })
 );
 
+/** Router lots → /api/lots */
 module.exports = router;

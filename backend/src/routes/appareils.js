@@ -1,3 +1,7 @@
+/**
+ * routes/appareils.js — Matériel médical (stock = colonne quantite).
+ * Préfixe API : /api/appareils
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -6,6 +10,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const router = express.Router();
 router.use(authentifier);
 
+/** GET / — Appareils actifs, recherche sur nom/référence/marque. */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -28,6 +33,7 @@ router.get(
   })
 );
 
+/** GET /:id — Détail appareil. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -40,6 +46,7 @@ router.get(
   })
 );
 
+/** POST / — Nouvel appareil (statut actif par défaut). */
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -78,6 +85,7 @@ router.post(
   })
 );
 
+/** PUT /:id — Mise à jour stock, prix, fournisseur, statut. */
 router.put(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -122,4 +130,5 @@ router.put(
   })
 );
 
+/** Router appareils → /api/appareils */
 module.exports = router;

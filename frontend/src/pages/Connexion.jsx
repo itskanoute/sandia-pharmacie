@@ -1,3 +1,7 @@
+/**
+ * Connexion administrateur en deux étapes : identifiants puis code reçu par e-mail.
+ * Persiste la session JWT via l’API client et redirige vers le tableau de bord.
+ */
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
@@ -5,17 +9,19 @@ import { apiLogin, apiVerifierCode, sauvegarderSession } from '../api';
 
 export default function Connexion({ onConnexion }) {
   const navigate = useNavigate();
-  const [etape, setEtape] = useState('identifiants');
-  const [nomUtilisateur, setNomUtilisateur] = useState('');
+  // Parcours en deux temps : identifiants puis code e-mail
+  const [etape, setEtape] = useState('identifiants'); // 'identifiants' | 'code'
+  const [nomUtilisateur, setNomUtilisateur] = useState(''); // login ou e-mail
   const [motDePasse, setMotDePasse] = useState('');
-  const [utilisateurId, setUtilisateurId] = useState(null);
-  const [emailMasque, setEmailMasque] = useState('');
-  const [code, setCode] = useState('');
-  const [devCode, setDevCode] = useState('');
+  const [utilisateurId, setUtilisateurId] = useState(null); // renvoyé après login
+  const [emailMasque, setEmailMasque] = useState(''); // affiché à l’étape code
+  const [code, setCode] = useState(''); // OTP 6 chiffres
+  const [devCode, setDevCode] = useState(''); // code visible en dev si API le renvoie
   const [erreur, setErreur] = useState('');
-  const [info, setInfo] = useState('');
-  const [chargement, setChargement] = useState(false);
+  const [info, setInfo] = useState(''); // message succès étape 1
+  const [chargement, setChargement] = useState(false); // boutons désactivés
 
+  /** Étape 1 : envoi du code de vérification par le backend. */
   async function handleIdentifiants(event) {
     event.preventDefault();
     setErreur('');
@@ -37,6 +43,7 @@ export default function Connexion({ onConnexion }) {
     }
   }
 
+  /** Étape 2 : validation du code → token et entrée dans l’application. */
   async function handleCode(event) {
     event.preventDefault();
     setErreur('');
@@ -54,6 +61,7 @@ export default function Connexion({ onConnexion }) {
     }
   }
 
+  // Réinitialise le flux pour resaisir identifiants / mot de passe
   function revenir() {
     setEtape('identifiants');
     setCode('');
@@ -70,6 +78,7 @@ export default function Connexion({ onConnexion }) {
         <h1>Connexion</h1>
         <p className="sous-titre">SAN-DIA DISTRIBUTION</p>
 
+        {/* Bascule formulaire identifiants vs code e-mail */}
         {etape === 'identifiants' ? (
           <form onSubmit={handleIdentifiants} className="formulaire">
             <label htmlFor="nom_utilisateur">Identifiant ou e-mail</label>

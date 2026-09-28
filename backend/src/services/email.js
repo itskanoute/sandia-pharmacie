@@ -1,6 +1,39 @@
+/**
+ * Envoi d’e-mails transactionnels : Brevo (HTTPS), SMTP ou mode démo.
+ * Modèles pour code de connexion et digest d’alertes administrateur.
+ */
 const dns = require('dns');
 const nodemailer = require('nodemailer');
+const { autoriseCodeDev } = require('../config/security');
 
+/** Extrait { name, email } depuis « Nom <addr@…> » ou adresse seule. */
+function parseAdresseFrom(fromRaw) {
+  const raw = String(fromRaw || '').trim();
+  const m = raw.match(/^(.*?)\s*<([^>]+)>$/);
+  if (m) {
+    return {
+      name: m[1].trim().replace(/^["']|["']$/g, '') || 'SAN-DIA DISTRIBUTION',
+      email: m[2].trim(),
+    };
+  }
+  if (raw.includes('@')) {
+    return { name: 'SAN-DIA DISTRIBUTION', email: raw };
+  }
+  return null;
+}
+
+/** Résout l’expéditeur selon variables .env (priorité SMTP_FROM → Brevo → admin). */
+function expediteur() {
+  return (
+    parseAdresseFrom(process.env.SMTP_FROM) ||
+    parseAdresseFrom(process.env.BREVO_SENDER_EMAIL) ||
+    parseAdresseFrom(process.env.SMTP_USER) ||
+    parseAdresseFrom(process.env.ADMIN_EMAIL) ||
+    null
+  );
+}
+
+/** Retourne un transport Nodemailer ou null si SMTP incomplet. */
 function smtpConfigure() {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
@@ -22,19 +55,61 @@ function smtpConfigure() {
   });
 }
 
-async function envoyerEmail({ to, subject, text, html }) {
-  const transport = smtpConfigure();
+/**
+ * Brevo HTTP API (port 443) — fonctionne sur Render free (SMTP bloqué).
+ * https://developers.brevo.com/docs/send-a-transactional-email
+ */
+async function envoyerViaBrevo({ to, subject, text, html }) {
+  const apiKey = String(process.env.BREVO_API_KEY || '').trim();
+  if (!apiKey) return null;
 
-  if (!transport) {
-    console.warn('[MAIL] SMTP non configuré. Message non envoyé à', to);
-    console.warn('[MAIL]', subject, '\n', text);
-    if (process.env.AUTH_ALLOW_DEV_CODE === 'true') {
-      return { mode: 'dev', email: to };
-    }
+  const sender = expediteur();
+  if (!sender?.email) {
     throw new Error(
-      'Envoi e-mail impossible : configure SMTP_HOST, SMTP_USER et SMTP_PASS (mot de passe d’application Gmail) dans backend/.env'
+      'Brevo configuré mais expéditeur manquant : renseigne SMTP_FROM ou BREVO_SENDER_EMAIL (adresse vérifiée chez Brevo).'
     );
   }
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'api-key': apiKey,
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: to }],
+      subject,
+      textContent: text || undefined,
+      htmlContent: html || undefined,
+    }),
+  });
+
+  const bodyText = await res.text();
+  let bodyJson = null;
+  try {
+    bodyJson = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    /* ignore */
+  }
+
+  if (!res.ok) {
+    const detail =
+      bodyJson?.message ||
+      bodyJson?.error ||
+      bodyText ||
+      `HTTP ${res.status}`;
+    throw new Error(`Brevo : ${detail}`);
+  }
+
+  return { mode: 'email', via: 'brevo', email: to, messageId: bodyJson?.messageId };
+}
+
+/** Envoi SMTP classique ; messages réseau remontés avec conseil Brevo sur Render. */
+async function envoyerViaSmtp({ to, subject, text, html }) {
+  const transport = smtpConfigure();
+  if (!transport) return null;
 
   try {
     await transport.sendMail({
@@ -46,18 +121,46 @@ async function envoyerEmail({ to, subject, text, html }) {
     });
   } catch (err) {
     const msg = String(err.message || err);
-    console.error('[MAIL] Échec envoi:', msg);
-    if (/ENETUNREACH|ETIMEDOUT|ECONNREFUSED|ESOCKET/i.test(msg)) {
+    console.error('[MAIL] Échec SMTP:', msg);
+    if (/ENETUNREACH|ETIMEDOUT|ECONNREFUSED|ESOCKET|Connection timeout/i.test(msg)) {
       throw new Error(
-        'Impossible d’envoyer le code par e-mail (réseau SMTP). Réessaie dans une minute.'
+        'Impossible d’envoyer le code par e-mail (réseau SMTP). Sur Render free, utilise BREVO_API_KEY (API HTTPS).'
       );
     }
     throw new Error(`Envoi e-mail impossible : ${msg}`);
   }
 
-  return { mode: 'email', email: to };
+  return { mode: 'email', via: 'smtp', email: to };
 }
 
+/** Choix du canal d’envoi (Brevo → SMTP → dev / erreur). */
+async function envoyerEmail({ to, subject, text, html }) {
+  // 1) Brevo (recommandé en prod / Render)
+  if (String(process.env.BREVO_API_KEY || '').trim()) {
+    try {
+      return await envoyerViaBrevo({ to, subject, text, html });
+    } catch (err) {
+      console.error('[MAIL] Échec Brevo:', err.message);
+      throw err;
+    }
+  }
+
+  // 2) SMTP local (Gmail, etc.) — souvent bloqué sur Render free
+  const smtp = await envoyerViaSmtp({ to, subject, text, html });
+  if (smtp) return smtp;
+
+  console.warn('[MAIL] Aucun fournisseur e-mail (BREVO_API_KEY / SMTP). Message non envoyé à', to);
+  console.warn('[MAIL]', subject, '\n', text);
+  // Jamais en production : évite d’exposer OTP / contenus sensibles
+  if (autoriseCodeDev()) {
+    return { mode: 'dev', email: to };
+  }
+  throw new Error(
+    'Envoi e-mail impossible : configure BREVO_API_KEY (Render) ou SMTP_HOST / SMTP_USER / SMTP_PASS en local.'
+  );
+}
+
+/** Échappement minimal pour corps HTML transactionnels. */
 function echapperHtml(valeur) {
   return String(valeur ?? '')
     .replace(/&/g, '&amp;')
@@ -99,6 +202,7 @@ function libelleJoursRestants(jours) {
   return `encore environ ${mois} mois (${j} jours)`;
 }
 
+/** E-mail OTP login (étape 1 auth). */
 async function envoyerCodeConnexion(email, code, nomComplet) {
   const sujet = 'Code de connexion — SAN-DIA DISTRIBUTION';
   const texte = [
@@ -143,13 +247,22 @@ async function envoyerAlertesAdmin(email, { stock, lots, peremption, dettes, seu
     return { mode: 'aucune', email, total: 0 };
   }
 
+  // Distinction lots déjà périmés vs bientôt périmés
+  const perimes = (peremption || []).filter((p) => Number(p.jours_restants) <= 0);
+  const bientotPerimes = (peremption || []).filter((p) => Number(p.jours_restants) > 0);
+  const nExpires = perimes.length;
+  const nBientot = bientotPerimes.length;
+
   const resumeParts = [];
+  if (nExpires) resumeParts.push(`${nExpires} lot(s) DÉJÀ PÉRIMÉ(S)`);
+  if (nBientot) resumeParts.push(`${nBientot} lot(s) bientôt périmé(s)`);
   if (nStock) resumeParts.push(`${nStock} produit(s) en stock bas`);
   if (nLots) resumeParts.push(`${nLots} lot(s) bientôt épuisé(s)`);
-  if (nPeremp) resumeParts.push(`${nPeremp} lot(s) bientôt périmé(s)`);
   if (nDettes) resumeParts.push(`${nDettes} dette(s) client`);
 
-  const sujet = `SAN-DIA — ${total} alerte${total > 1 ? 's' : ''} à traiter (${resumeParts.slice(0, 2).join(', ')})`;
+  const sujet = nExpires
+    ? `SAN-DIA URGENT — ${nExpires} lot(s) périmé(s) à retirer`
+    : `SAN-DIA — ${total} alerte${total > 1 ? 's' : ''} à traiter (${resumeParts.slice(0, 2).join(', ')})`;
 
   // ——— Texte brut (lisible sur mobile) ———
   const blocsTexte = [
@@ -189,18 +302,33 @@ async function envoyerAlertesAdmin(email, { stock, lots, peremption, dettes, seu
   }
 
   if (nPeremp) {
-    blocsTexte.push(
-      `3) PÉREMPTION — dans les ${moisApprox} prochains mois (≤ ${jours} jours)`,
-      '   → À faire : vendre en priorité ou retirer si déjà périmé.',
-      ''
-    );
-    for (const p of peremption) {
-      const etat = libelleJoursRestants(p.jours_restants);
+    if (nExpires) {
       blocsTexte.push(
-        `   • ${p.medicament_nom} (lot ${p.numero_lot}) — péremption le ${formatDateMail(p.date_peremption)} (${etat}) — qté ${p.quantite_disponible}`
+        '3a) LOTS DÉJÀ PÉRIMÉS — à retirer du stock immédiatement',
+        '   → À faire : sortir / détruire selon procédure, ne plus vendre.',
+        ''
       );
+      for (const p of perimes) {
+        blocsTexte.push(
+          `   • ${p.medicament_nom} (lot ${p.numero_lot}) — périmé depuis le ${formatDateMail(p.date_peremption)} — qté ${p.quantite_disponible}`
+        );
+      }
+      blocsTexte.push('');
     }
-    blocsTexte.push('');
+    if (nBientot) {
+      blocsTexte.push(
+        `3b) PÉREMPTION PROCHE — dans les ${moisApprox} prochains mois (≤ ${jours} jours)`,
+        '   → À faire : vendre en priorité ces lots.',
+        ''
+      );
+      for (const p of bientotPerimes) {
+        const etat = libelleJoursRestants(p.jours_restants);
+        blocsTexte.push(
+          `   • ${p.medicament_nom} (lot ${p.numero_lot}) — péremption le ${formatDateMail(p.date_peremption)} (${etat}) — qté ${p.quantite_disponible}`
+        );
+      }
+      blocsTexte.push('');
+    }
   }
 
   if (nDettes) {
@@ -364,6 +492,7 @@ async function envoyerAlertesAdmin(email, { stock, lots, peremption, dettes, seu
   return { ...envoi, total };
 }
 
+/** API publique du module e-mail (auth + alertes + envoi générique). */
 module.exports = {
   envoyerCodeConnexion,
   envoyerAlertesAdmin,

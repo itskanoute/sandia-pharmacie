@@ -1,3 +1,6 @@
+/**
+ * Achats.jsx — Commandes fournisseurs : création de bons de commande et historique.
+ */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -10,15 +13,17 @@ import {
 import { formatDate, formatFcfa } from '../utils/format';
 
 export default function Achats() {
+  // Bon de commande fournisseur en cours de saisie
   const [commandes, setCommandes] = useState([]);
   const [fournisseurs, setFournisseurs] = useState([]);
   const [medicaments, setMedicaments] = useState([]);
   const [fournisseurId, setFournisseurId] = useState('');
-  const [lignes, setLignes] = useState([]);
+  const [lignes, setLignes] = useState([]); // panier commande fournisseur
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
   const [chargement, setChargement] = useState(false);
 
+  // Références commandes, fournisseurs et catalogue pour le formulaire
   async function charger() {
     const [c, f, m] = await Promise.all([
       apiCommandes(),
@@ -39,6 +44,7 @@ export default function Achats() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // Incrémente la quantité ou ajoute une ligne produit à la commande
   function ajouter(med) {
     setLignes((prev) => {
       const ex = prev.find((l) => l.medicament_id === med.id);
@@ -61,6 +67,7 @@ export default function Achats() {
     });
   }
 
+  // POST /api/commandes avec lignes médicaments
   async function creer() {
     setErreur('');
     setMessage('');
@@ -100,6 +107,8 @@ export default function Achats() {
       <PageHeader
         titre="Achats / Commandes"
         sousTitre="Commandes fournisseurs"
+        pdfCible="#zone-pdf"
+        pdfNom="achats"
         actions={
           <Link to="/fournisseurs" className="bouton-secondaire">
             + Fournisseur
@@ -188,7 +197,7 @@ export default function Achats() {
         ) : null}
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead>
             <tr>

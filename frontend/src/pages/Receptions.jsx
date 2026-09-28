@@ -1,3 +1,6 @@
+/**
+ * Receptions.jsx — Réception des commandes : quantités reçues et validation.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import {
@@ -10,11 +13,12 @@ import {
 import { formatDate } from '../utils/format';
 
 export default function Receptions() {
+  // Réceptions existantes et commandes encore recevables
   const [liste, setListe] = useState([]);
   const [commandes, setCommandes] = useState([]);
   const [commandeId, setCommandeId] = useState('');
-  const [detail, setDetail] = useState(null);
-  const [lignesEdit, setLignesEdit] = useState([]);
+  const [detail, setDetail] = useState(null); // réception ouverte pour contrôle
+  const [lignesEdit, setLignesEdit] = useState([]); // qté reçue, lot, péremption
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
 
@@ -29,6 +33,7 @@ export default function Receptions() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // Ouvre une réception brouillon liée à une commande
   async function creer() {
     try {
       const rec = await apiCreerReception({ commande_id: Number(commandeId) });
@@ -40,6 +45,7 @@ export default function Receptions() {
     }
   }
 
+  // Charge le détail réception et prépare l’édition des lignes
   async function ouvrir(id) {
     const rec = await apiReception(id);
     setDetail(rec);
@@ -53,6 +59,7 @@ export default function Receptions() {
     );
   }
 
+  // Contrôle qualité : lots, quantités → entrée stock
   async function valider() {
     try {
       const data = await apiValiderReception(detail.id, { lignes: lignesEdit });
@@ -66,7 +73,12 @@ export default function Receptions() {
 
   return (
     <div className="page">
-      <PageHeader titre="Réceptions & contrôle" sousTitre="Contrôle puis entrée en stock" />
+      <PageHeader
+        titre="Réceptions & contrôle"
+        sousTitre="Contrôle puis entrée en stock"
+        pdfCible="#zone-pdf"
+        pdfNom="receptions"
+      />
       {message ? <p className="message-succes">{message}</p> : null}
       {erreur ? <p className="message-erreur">{erreur}</p> : null}
 
@@ -163,7 +175,7 @@ export default function Receptions() {
         </div>
       ) : null}
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead><tr><th>N°</th><th>Date</th><th>Commande</th><th>Fournisseur</th><th>Statut</th><th></th></tr></thead>
           <tbody>

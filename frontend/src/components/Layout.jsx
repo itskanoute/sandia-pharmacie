@@ -1,8 +1,13 @@
+/**
+ * Coque applicative : barre latérale, navigation par modules,
+ * menu mobile et badge du nombre d’alertes (rafraîchi toutes les minutes).
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { apiAlertes } from '../api';
 
+// Structure du menu latéral (groupes + routes React Router)
 const NAV = [
   { to: '/', label: 'Tableau de bord', end: true },
   { groupe: 'Produits' },
@@ -25,17 +30,21 @@ const NAV = [
   { to: '/finance', label: 'Finance' },
   { to: '/alertes', label: 'Alertes' },
   { to: '/rapports', label: 'Rapports' },
+  { to: '/carnet', label: 'Carnet' },
   { to: '/admins', label: 'Administrateurs' },
   { to: '/parametres', label: 'Paramètres' },
 ];
 
 export default function Layout({ utilisateur, onDeconnexion }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const nom = utilisateur?.nom_complet || 'Administrateur';
+  const navigate = useNavigate(); // redirection alertes / déconnexion
+  const location = useLocation(); // ferme menu mobile au changement de route
+  const nom = utilisateur?.nom_complet || 'Administrateur'; // pied de menu
+  // Dernière réponse /api/stats/alertes pour le badge menu
   const [alertes, setAlertes] = useState(null);
+  // Menu latéral ouvert sur mobile
   const [menuOuvert, setMenuOuvert] = useState(false);
 
+  // Charge les alertes au montage puis toutes les 60 secondes
   useEffect(() => {
     let actif = true;
     function charger() {
@@ -70,6 +79,7 @@ export default function Layout({ utilisateur, onDeconnexion }) {
     };
   }, [menuOuvert]);
 
+  // Somme des listes d’alertes renvoyées par l’API
   const nbAlertes = useMemo(() => {
     if (!alertes) return 0;
     return (
@@ -80,6 +90,7 @@ export default function Layout({ utilisateur, onDeconnexion }) {
     );
   }, [alertes]);
 
+  // Déconnexion + redirection vers /connexion
   function quitter() {
     setMenuOuvert(false);
     onDeconnexion?.();
@@ -88,6 +99,7 @@ export default function Layout({ utilisateur, onDeconnexion }) {
 
   return (
     <div className={`app-shell ${menuOuvert ? 'menu-ouvert' : ''}`}>
+      {/* Barre supérieure mobile : hamburger et raccourci alertes */}
       <header className="topbar-mobile no-print">
         <button
           type="button"
@@ -125,10 +137,11 @@ export default function Layout({ utilisateur, onDeconnexion }) {
         onClick={() => setMenuOuvert(false)}
       />
 
+      {/* Navigation principale par module métier */}
       <aside className="sidebar" id="menu-principal">
         <div className="sidebar-brand">
           <div className="sidebar-brand-ligne">
-            <Logo variant="sidebar" />
+            <p className="sidebar-activite">Pharmacie Mali</p>
             <button
               type="button"
               className="bouton-fermer-menu no-print"
@@ -138,7 +151,6 @@ export default function Layout({ utilisateur, onDeconnexion }) {
               ✕
             </button>
           </div>
-          <p className="sidebar-activite">Pharmacie Mali</p>
         </div>
 
         <nav className="sidebar-nav">
@@ -174,11 +186,12 @@ export default function Layout({ utilisateur, onDeconnexion }) {
       </aside>
 
       <div className="main-area">
+        {/* En-tête visuel + rappel alertes sur desktop */}
         <div className="bandeau-logo no-print">
           <Logo variant="header" />
           <div className="bandeau-logo-texte">
             <strong>SAN-DIA DISTRIBUTION</strong>
-            <span>Bamako · 73 36 11 10 / 69 67 05 69 · FCFA</span>
+            <span>Bamako · 72 17 75 97 / 93 90 15 01 · FCFA</span>
           </div>
           {nbAlertes > 0 ? (
             <button
@@ -190,6 +203,7 @@ export default function Layout({ utilisateur, onDeconnexion }) {
             </button>
           ) : null}
         </div>
+        {/* Contenu de la route active (pages métier) */}
         <Outlet />
       </div>
     </div>

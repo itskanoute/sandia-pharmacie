@@ -1,9 +1,13 @@
+/**
+ * Medicaments.jsx — Catalogue des médicaments : liste, recherche, création et modification.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge, libelleStatut, statutTone } from '../components/Badge';
 import { apiCreerMedicament, apiMajMedicament, apiMedicaments } from '../api';
 import { formatFcfa } from '../utils/format';
 
+// Valeurs initiales du formulaire création médicament
 const VIDE = {
   nom: '',
   reference: '',
@@ -17,13 +21,15 @@ const VIDE = {
 };
 
 export default function Medicaments() {
-  const [liste, setListe] = useState([]);
-  const [recherche, setRecherche] = useState('');
-  const [form, setForm] = useState(null);
+  const [liste, setListe] = useState([]); // catalogue affiché dans le tableau
+  const [recherche, setRecherche] = useState(''); // filtre texte API ?q=
+  const [form, setForm] = useState(null); // null = pas de panneau formulaire
+  // id MySQL en cours d’édition (null = création)
   const [editionId, setEditionId] = useState(null);
-  const [erreur, setErreur] = useState('');
-  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState(''); // message API ou validation
+  const [chargement, setChargement] = useState(true); // spinner tableau
 
+  // GET /api/medicaments avec filtre texte optionnel
   async function charger(q = '') {
     setChargement(true);
     setErreur('');
@@ -36,6 +42,7 @@ export default function Medicaments() {
     }
   }
 
+  // Montage : charge la liste sans filtre
   useEffect(() => {
     charger();
   }, []);
@@ -45,6 +52,7 @@ export default function Medicaments() {
     setForm({ ...VIDE });
   }
 
+  // Préremplit le formulaire à partir d’une ligne du tableau
   function ouvrirEdit(m) {
     setEditionId(m.id);
     setForm({
@@ -66,6 +74,7 @@ export default function Medicaments() {
     setEditionId(null);
   }
 
+  // POST ou PUT selon mode création / édition
   async function enregistrer(e) {
     e.preventDefault();
     setErreur('');
@@ -84,6 +93,8 @@ export default function Medicaments() {
       <PageHeader
         titre="Médicaments"
         sousTitre="Catalogue · prix FCFA · stock par lots"
+        pdfCible="#zone-pdf"
+        pdfNom="medicaments"
         actions={
           !form ? (
             <button type="button" className="bouton-principal" onClick={ouvrirNouveau}>
@@ -243,7 +254,7 @@ export default function Medicaments() {
         </form>
       ) : null}
 
-      <section className="med-liste">
+      <section className="med-liste" id="zone-pdf">
         <div className="med-liste-tete">
           <h2>Catalogue</h2>
           <span className="meta">{liste.length} médicament(s)</span>

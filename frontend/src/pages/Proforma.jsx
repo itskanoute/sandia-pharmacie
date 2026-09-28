@@ -1,3 +1,6 @@
+/**
+ * Proforma.jsx — Devis proforma : création, impression et conversion en facture.
+ */
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -20,8 +23,9 @@ import {
 const MOYENS = ['Espèce', 'Orange Money', 'Moov Money', 'Wave', 'Chèque', 'Virement'];
 
 export default function Proforma() {
-  const navigate = useNavigate();
-  const [liste, setListe] = useState([]);
+  const navigate = useNavigate(); // redirection après facturation
+  // Liste des devis et document en cours de visualisation
+  const [liste, setListe] = useState([]); // tableau historique pro forma
   const [clients, setClients] = useState([]);
   const [medicaments, setMedicaments] = useState([]);
   const [parametres, setParametres] = useState(null);
@@ -34,6 +38,8 @@ export default function Proforma() {
   const [moyenPaiement, setMoyenPaiement] = useState('Espèce');
   const [montantPaye, setMontantPaye] = useState('');
   const [facturation, setFacturation] = useState(false);
+
+  // Données pro formas, clients, médicaments et paramètres d’impression
   async function charger() {
     const [pfs, c, m, p] = await Promise.all([
       apiProformas(),
@@ -108,6 +114,7 @@ export default function Proforma() {
     });
   }
 
+  // Crée un pro forma sans mouvement de stock
   async function creer() {
     if (!lignes.length) {
       setErreur('Ajoutez au moins un produit.');
@@ -149,6 +156,7 @@ export default function Proforma() {
     }
   }
 
+  // Convertit le pro forma en vente/facture (impact stock)
   async function creerFacture() {
     if (!doc) return;
     setFacturation(true);
@@ -174,8 +182,10 @@ export default function Proforma() {
     }
   }
 
+  // Total du brouillon avant création
   const total = lignes.reduce((s, l) => s + l.quantite * l.prix_unitaire, 0);
 
+  // Mode aperçu document : PDF + conversion facture
   if (doc) {
     const client = clients.find((c) => Number(c.id) === Number(doc.client_id));
     const dejaFacture = doc.statut === 'converti_vente';
@@ -193,19 +203,18 @@ export default function Proforma() {
               <button
                 type="button"
                 className="bouton-principal"
-                onClick={() => {
+                onClick={async () => {
                   try {
-                    telechargerDocumentHtml(
+                    await telechargerDocumentHtml(
                       'document-proforma-impression',
                       doc.numero || 'proforma'
                     );
-                    setTimeout(() => imprimerDocument(), 400);
                   } catch (e) {
                     setErreur(e.message);
                   }
                 }}
               >
-                Télécharger / PDF
+                Télécharger PDF
               </button>
               <button type="button" className="bouton-secondaire" onClick={() => setDoc(null)}>
                 Retour
@@ -289,7 +298,12 @@ export default function Proforma() {
 
   return (
     <div className="page">
-      <PageHeader titre="Pro forma" sousTitre="Devis sans sortie de stock" />
+      <PageHeader
+        titre="Pro forma"
+        sousTitre="Devis sans sortie de stock"
+        pdfCible="#zone-pdf"
+        pdfNom="proforma"
+      />
       {message ? <p className="message-succes">{message}</p> : null}
       {erreur ? <p className="message-erreur">{erreur}</p> : null}
 
@@ -357,7 +371,7 @@ export default function Proforma() {
         </button>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead><tr><th>N°</th><th>Date</th><th>Client</th><th>Total</th><th></th></tr></thead>
           <tbody>

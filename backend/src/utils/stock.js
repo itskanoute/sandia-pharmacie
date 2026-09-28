@@ -3,6 +3,7 @@
  * Appareil = colonne quantite.
  */
 
+/** Agrège le stock disponible d’un médicament sur tous ses lots. */
 async function stockMedicament(connection, medicamentId) {
   const [rows] = await connection.execute(
     `SELECT COALESCE(SUM(quantite_disponible), 0) AS stock
@@ -13,6 +14,7 @@ async function stockMedicament(connection, medicamentId) {
   return Number(rows[0]?.stock || 0);
 }
 
+/** Lit la quantité en stock d’un appareil médical (colonne directe). */
 async function stockAppareil(connection, appareilId) {
   const [rows] = await connection.execute(
     `SELECT quantite FROM appareils_medicaux WHERE id = ? LIMIT 1`,
@@ -74,6 +76,7 @@ async function decrementerStockMedicament(connection, medicamentId, quantite, ut
   return premierLotId;
 }
 
+/** Décrémente quantite sur appareils_medicaux et journalise une sortie vente. */
 async function decrementerStockAppareil(connection, appareilId, quantite, utilisateurId, referenceType, referenceId) {
   const disponible = await stockAppareil(connection, appareilId);
   if (disponible < quantite) {
@@ -96,6 +99,7 @@ async function decrementerStockAppareil(connection, appareilId, quantite, utilis
   );
 }
 
+/** Fonctions stock partagées ventes et pro formas. */
 module.exports = {
   stockMedicament,
   stockAppareil,

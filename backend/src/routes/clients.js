@@ -1,11 +1,17 @@
+/**
+ * routes/clients.js — Gestion des clients (ordinaires et revendeurs).
+ * Préfixe API : /api/clients — JWT obligatoire sur toutes les routes.
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
 
 const router = express.Router();
+// Toutes les opérations clients exigent une session admin valide
 router.use(authentifier);
 
+/** GET / — Liste filtrée : q (nom/téléphone), actif (0|1), type (ordinaire|revendeur). */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -37,6 +43,7 @@ router.get(
   })
 );
 
+/** GET /:id — Détail d’un client par identifiant. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -51,6 +58,7 @@ router.get(
   })
 );
 
+/** POST / — Création client ; validation : nom obligatoire. */
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -73,6 +81,7 @@ router.post(
   })
 );
 
+/** PUT /:id — Mise à jour ; champ actif pour désactiver sans supprimer. */
 router.put(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -101,4 +110,5 @@ router.put(
   })
 );
 
+/** Router clients → /api/clients */
 module.exports = router;

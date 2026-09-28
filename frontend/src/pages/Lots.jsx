@@ -1,3 +1,6 @@
+/**
+ * Lots.jsx — Suivi des lots et dates de péremption ; création et filtres d’alerte.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -5,6 +8,7 @@ import { Badge } from '../components/Badge';
 import { apiCreerLot, apiLots, apiMedicaments } from '../api';
 import { formatDate } from '../utils/format';
 
+// État initial formulaire création de lot
 const FORM_VIDE = {
   medicament_id: '',
   numero_lot: '',
@@ -13,12 +17,12 @@ const FORM_VIDE = {
 };
 
 export default function Lots() {
-  const [lots, setLots] = useState([]);
-  const [medicaments, setMedicaments] = useState([]);
-  const [formOuvert, setFormOuvert] = useState(false);
+  const [lots, setLots] = useState([]); // tous les lots API
+  const [medicaments, setMedicaments] = useState([]); // select création lot
+  const [formOuvert, setFormOuvert] = useState(false); // panneau formulaire visible
   const [form, setForm] = useState(FORM_VIDE);
-  const [filtre, setFiltre] = useState('');
-  const [filtreAlerte, setFiltreAlerte] = useState('tous');
+  const [filtre, setFiltre] = useState(''); // recherche nom / n° lot
+  const [filtreAlerte, setFiltreAlerte] = useState('tous'); // tous | peremption | stock | ok
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
   const [chargement, setChargement] = useState(false);
@@ -33,6 +37,7 @@ export default function Lots() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // Compteurs alertes péremption / stock bas pour les filtres
   const stats = useMemo(() => {
     const peremp = lots.filter((l) => l.alerte_peremption).length;
     const stockBas = lots.filter((l) => l.alerte_stock_lot).length;
@@ -40,6 +45,7 @@ export default function Lots() {
     return { total: lots.length, peremp, stockBas, ok };
   }, [lots]);
 
+  // Filtre texte + type d’alerte (péremption, stock, OK)
   const lotsFiltres = useMemo(() => {
     const q = filtre.trim().toLowerCase();
     return lots.filter((l) => {
@@ -69,6 +75,7 @@ export default function Lots() {
     setForm(FORM_VIDE);
   }
 
+  // POST /api/lots — incrémente le stock du médicament
   async function enregistrer(e) {
     e.preventDefault();
     setChargement(true);
@@ -95,6 +102,8 @@ export default function Lots() {
       <PageHeader
         titre="Lots & péremption"
         sousTitre="Entrée de stock · suivi des dates · alertes (5 mois / 50 unités)"
+        pdfCible="#zone-pdf"
+        pdfNom="lots"
         actions={
           !formOuvert ? (
             <button type="button" className="bouton-principal" onClick={ouvrirForm}>
@@ -106,25 +115,6 @@ export default function Lots() {
 
       {message ? <p className="message-succes">{message}</p> : null}
       {erreur ? <p className="message-erreur">{erreur}</p> : null}
-
-      <div className="lots-stats">
-        <div className="lots-stat">
-          <span className="lots-stat-valeur">{stats.total}</span>
-          <span className="lots-stat-label">Lots actifs</span>
-        </div>
-        <div className={`lots-stat ${stats.peremp ? 'lots-stat--attention' : ''}`}>
-          <span className="lots-stat-valeur">{stats.peremp}</span>
-          <span className="lots-stat-label">Péremption ≤ 5 mois</span>
-        </div>
-        <div className={`lots-stat ${stats.stockBas ? 'lots-stat--attention' : ''}`}>
-          <span className="lots-stat-valeur">{stats.stockBas}</span>
-          <span className="lots-stat-label">Reste ≤ 50</span>
-        </div>
-        <div className="lots-stat lots-stat--ok">
-          <span className="lots-stat-valeur">{stats.ok}</span>
-          <span className="lots-stat-label">Sans alerte</span>
-        </div>
-      </div>
 
       {formOuvert ? (
         <form className="lots-formulaire" onSubmit={enregistrer}>
@@ -200,6 +190,26 @@ export default function Lots() {
           </div>
         </form>
       ) : null}
+
+      <div id="zone-pdf">
+      <div className="lots-stats">
+        <div className="lots-stat">
+          <span className="lots-stat-valeur">{stats.total}</span>
+          <span className="lots-stat-label">Lots actifs</span>
+        </div>
+        <div className={`lots-stat ${stats.peremp ? 'lots-stat--attention' : ''}`}>
+          <span className="lots-stat-valeur">{stats.peremp}</span>
+          <span className="lots-stat-label">Péremption ≤ 5 mois</span>
+        </div>
+        <div className={`lots-stat ${stats.stockBas ? 'lots-stat--attention' : ''}`}>
+          <span className="lots-stat-valeur">{stats.stockBas}</span>
+          <span className="lots-stat-label">Reste ≤ 50</span>
+        </div>
+        <div className="lots-stat lots-stat--ok">
+          <span className="lots-stat-valeur">{stats.ok}</span>
+          <span className="lots-stat-label">Sans alerte</span>
+        </div>
+      </div>
 
       <section className="lots-liste">
         <div className="lots-liste-tete">
@@ -310,6 +320,7 @@ export default function Lots() {
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }

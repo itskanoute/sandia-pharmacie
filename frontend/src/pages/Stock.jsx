@@ -1,3 +1,6 @@
+/**
+ * Stock.jsx — Vue consolidée du stock (médicaments et appareils) avec valorisation.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge } from '../components/Badge';
@@ -5,9 +8,11 @@ import { apiStock } from '../api';
 import { formatDateHeure, formatFcfa } from '../utils/format';
 
 export default function Stock() {
-  const [data, setData] = useState(null);
+  // Réponse /api/stock : médicaments, appareils, mouvements
+  const [data, setData] = useState(null); // medicaments, appareils, mouvements
   const [erreur, setErreur] = useState('');
 
+  // Chargement initial du stock consolidé
   useEffect(() => {
     apiStock()
       .then(setData)
@@ -34,8 +39,15 @@ export default function Stock() {
 
   return (
     <div className="page">
-      <PageHeader titre="Stock" sousTitre="Médicaments · appareils · mouvements" />
+      <PageHeader
+        titre="Stock"
+        sousTitre="Médicaments · appareils · mouvements"
+        pdfCible="#zone-pdf"
+        pdfNom="stock"
+      />
 
+      <div id="zone-pdf">
+      {/* Tableaux séparés par type de produit et journal des mouvements */}
       <h3>Médicaments</h3>
       <div className="table-wrap">
         <table>
@@ -93,6 +105,7 @@ export default function Stock() {
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

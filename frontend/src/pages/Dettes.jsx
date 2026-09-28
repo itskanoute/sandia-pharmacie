@@ -1,3 +1,6 @@
+/**
+ * Dettes.jsx — Créances : soldes restants et enregistrement des paiements.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge, libelleStatut, statutTone } from '../components/Badge';
@@ -5,12 +8,14 @@ import { apiCreerPaiement, apiDettes } from '../api';
 import { formatDate, formatFcfa } from '../utils/format';
 
 export default function Dettes() {
-  const [liste, setListe] = useState([]);
-  const [factureId, setFactureId] = useState('');
-  const [montant, setMontant] = useState('');
+  // Factures avec solde restant dû
+  const [liste, setListe] = useState([]); // factures avec montant_reste > 0
+  const [factureId, setFactureId] = useState(''); // select paiement
+  const [montant, setMontant] = useState(''); // montant encaissé FCFA
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
 
+  // GET /api/factures/dettes
   async function charger() {
     setListe(await apiDettes());
   }
@@ -19,6 +24,7 @@ export default function Dettes() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // POST /api/paiements puis rafraîchit la liste des dettes
   async function payer() {
     try {
       await apiCreerPaiement({
@@ -38,7 +44,12 @@ export default function Dettes() {
 
   return (
     <div className="page">
-      <PageHeader titre="Dettes clients" sousTitre={`Total dû : ${formatFcfa(total)}`} />
+      <PageHeader
+        titre="Dettes clients"
+        sousTitre={`Total dû : ${formatFcfa(total)}`}
+        pdfCible="#zone-pdf"
+        pdfNom="dettes"
+      />
       {message ? <p className="message-succes">{message}</p> : null}
       {erreur ? <p className="message-erreur">{erreur}</p> : null}
 
@@ -73,7 +84,7 @@ export default function Dettes() {
         </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead>
             <tr>

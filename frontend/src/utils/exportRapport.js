@@ -1,14 +1,20 @@
+/**
+ * exportRapport.js — Construction des données et export Excel / PDF HTML du rapport d’activité.
+ */
 import * as XLSX from 'xlsx';
 import { libelleStatut } from '../components/Badge';
 import { formatFcfa } from './format';
 import { SANDIA_DEFAUT } from '../data/sandia';
 
+// Suffixe AAAA-MM-JJ pour les noms de fichiers exportés
+// Suffixe AAAA-MM-JJ pour les noms de fichiers exportés
 function dateFichier() {
   const d = new Date();
-  const p = (n) => String(n).padStart(2, '0');
+  const p = (n) => String(n).padStart(2, '0'); // zero-padding mois/jour
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+// Téléchargement côté client via lien temporaire (fallback popup bloquée)
 function telechargerBlob(blob, nomFichier) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -21,7 +27,9 @@ function telechargerBlob(blob, nomFichier) {
 }
 
 /** Construit les lignes du rapport à partir du dashboard + finance. */
+/** Agrège dashboard + finance en structures prêtes pour Excel / HTML PDF */
 export function construireDonneesRapport(dash, finance) {
+  // Lignes KPI (montants ou compteurs)
   const indicateurs = [
     { indicateur: 'CA facturé', valeur: Number(finance.chiffre_affaires) || 0, monetaire: true },
     { indicateur: 'Encaissé', valeur: Number(finance.encaissements) || 0, monetaire: true },
@@ -31,6 +39,7 @@ export function construireDonneesRapport(dash, finance) {
     { indicateur: 'Clients actifs', valeur: Number(dash.nb_clients) || 0, monetaire: false },
   ];
 
+  // Tableau pour feuille Excel « Factures »
   const repartition = (finance.par_statut || []).map((s) => ({
     statut: libelleStatut(s.statut_paiement),
     nombre: Number(s.nb) || 0,
@@ -50,9 +59,10 @@ export function construireDonneesRapport(dash, finance) {
 }
 
 /** Export Excel (.xlsx) — 3 feuilles. */
+/** Export Excel (.xlsx) — 3 feuilles : Synthèse, Factures, Paiements */
 export function exporterRapportExcel(dash, finance) {
   const { repartition, paiements } = construireDonneesRapport(dash, finance);
-  const wb = XLSX.utils.book_new();
+  const wb = XLSX.utils.book_new(); // classeur vide
 
   const ws1 = XLSX.utils.aoa_to_sheet([
     ['SAN-DIA DISTRIBUTION'],

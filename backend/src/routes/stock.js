@@ -1,3 +1,7 @@
+/**
+ * routes/stock.js — Vue synthétique stock (médicaments par lots, appareils, mouvements récents).
+ * Préfixe API : /api/stock
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -6,9 +10,13 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const router = express.Router();
 router.use(authentifier);
 
+/**
+ * GET / — Agrège stock médicaments (somme lots), quantités appareils et 50 derniers mouvements.
+ */
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
+    // Stock médicament = somme quantite_disponible par medicament_id
     const [medicaments] = await pool.execute(
       `SELECT m.id, m.nom, m.reference, m.seuil_alerte, m.unite_gestion, m.statut,
               COALESCE(s.stock, 0) AS stock_disponible
@@ -41,4 +49,5 @@ router.get(
   })
 );
 
+/** Router stock → /api/stock */
 module.exports = router;

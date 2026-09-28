@@ -16,8 +16,10 @@ const ORDER = [
   'update_infos_sandia.sql',
   'update_email_admin.sql',
   'update_alertes_seuils.sql',
+  'update_carnet_notes.sql',
 ];
 
+/** Erreurs SQL attendues lors de migrations idempotentes (colonne/table déjà là). */
 function isIgnorable(err) {
   const msg = String(err.message || '');
   const code = err.errno || err.code;
@@ -47,6 +49,7 @@ function splitStatements(sql) {
     .filter((s) => !/^SELECT\b/i.test(s));
 }
 
+/** Exécute statement par statement un fichier update_*.sql. */
 async function runFile(conn, filePath) {
   const sql = fs.readFileSync(filePath, 'utf8');
   const parts = splitStatements(sql);
@@ -65,6 +68,7 @@ async function runFile(conn, filePath) {
   }
 }
 
+/** Point d’entrée CLI : exécute ORDER[] sur la base configurée. */
 async function main() {
   const host = process.env.DB_HOST;
   const port = Number(process.env.DB_PORT || 3306);

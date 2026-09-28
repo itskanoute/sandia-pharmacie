@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
 
+/** Import initial schema_mysql.sql (hors CREATE DATABASE sur hébergeurs managés). */
 async function main() {
   const host = process.env.DB_HOST;
   const port = Number(process.env.DB_PORT || 3306);

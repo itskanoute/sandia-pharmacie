@@ -1,9 +1,25 @@
+/**
+ * server.js — Serveur Express SAN-DIA (API + interface en production)
+ * -------------------------------------------------------------------
+ * Sécurité : helmet, CORS restreint, limite JSON, trust proxy, JWT_SECRET contrôlé.
+ */
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { testConnection } = require('./config/db');
+const {
+  estProduction,
+  assertJwtSecret,
+  corsOriginCallback,
+} = require('./config/security');
+
+assertJwtSecret();
+
+// Routes métier
 const authRoutes = require('./routes/auth');
 const clientsRoutes = require('./routes/clients');
 const medicamentsRoutes = require('./routes/medicaments');
@@ -19,13 +35,57 @@ const stockRoutes = require('./routes/stock');
 const statsRoutes = require('./routes/stats');
 const commandesRoutes = require('./routes/commandes');
 const receptionsRoutes = require('./routes/receptions');
+const notesRoutes = require('./routes/notes');
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+// Derrière Render / reverse-proxy (IP réelle pour rate-limit)
+app.set('trust proxy', 1);
 
+// En-têtes HTTP de sécurité (XSS, clickjacking, MIME sniffing…)
+app.use(
+  helmet({
+    contentSecurityPolicy: estProduction()
+      ? {
+          useDefaults: true,
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:', 'blob:'],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'", 'data:'],
+            objectSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+          },
+        }
+      : false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+app.use(
+  cors({
+    origin: corsOriginCallback,
+    credentials: true,
+  })
+);
+
+// Limite la taille des corps JSON (anti DoS)
+app.use(express.json({ limit: '100kb' }));
+
+// Rate-limit global API (hors health)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_API_MAX || 400),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de requêtes. Réessaie dans quelques minutes.' },
+});
+app.use('/api/', apiLimiter);
+
+/** Santé de l’API + test MySQL (utilisé aussi par Render healthCheckPath) */
 app.get('/api/health', async (_req, res) => {
   try {
     await testConnection();
@@ -36,14 +96,19 @@ app.get('/api/health', async (_req, res) => {
       devise: 'FCFA',
     });
   } catch (erreur) {
-    res.status(503).json({
+    const payload = {
       status: 'erreur',
-      message: 'Connexion MySQL impossible. Vérifie backend/.env et que la base est importée.',
-      detail: erreur.message,
-    });
+      message: 'Connexion MySQL impossible.',
+    };
+    // Détail technique uniquement hors production
+    if (!estProduction()) {
+      payload.detail = erreur.message;
+    }
+    res.status(503).json(payload);
   }
 });
 
+// ---------- Montage des routes API ----------
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/medicaments', medicamentsRoutes);
@@ -59,8 +124,9 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/commandes', commandesRoutes);
 app.use('/api/receptions', receptionsRoutes);
+app.use('/api/notes', notesRoutes);
 
-/* En production : un seul site (API + interface) */
+/* Production Docker/Render : un seul site (API + interface React) */
 const distPath = path.join(__dirname, '../../frontend/dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
@@ -80,7 +146,10 @@ app.use((erreur, _req, res, _next) => {
     console.error('Erreur API:', erreur.message);
   }
   res.status(status).json({
-    message: erreur.message || 'Erreur serveur.',
+    message:
+      status >= 500 && estProduction()
+        ? 'Erreur serveur.'
+        : erreur.message || 'Erreur serveur.',
   });
 });
 
@@ -93,21 +162,7 @@ app.listen(PORT, '0.0.0.0', () => {
   const { synchroniserEmailAdmin } = require('./scripts/syncAdminEmail');
   synchroniserEmailAdmin().catch((e) => console.warn('[AUTH]', e.message));
 
-  const { notifierAlertesAdmin } = require('./services/alertesService');
-  const envoyer = () => {
-    notifierAlertesAdmin()
-      .then((r) => {
-        if (r.mode === 'aucune') {
-          console.log('[ALERTES] Aucune alerte à envoyer.');
-        } else {
-          console.log(
-            `[ALERTES] Notification ${r.mode} → ${r.nb_destinataires || 1} admin(s) : ${r.admin_email} (${r.total} alerte(s))`
-          );
-        }
-      })
-      .catch((e) => console.warn('[ALERTES]', e.message));
-  };
-
-  setTimeout(envoyer, 45_000);
-  setInterval(envoyer, 6 * 60 * 60 * 1000);
+  // Alertes péremption / stock / dettes → e-mail admins (Brevo en hébergement)
+  const { demarrerSchedulerAlertes } = require('./services/alertesScheduler');
+  demarrerSchedulerAlertes();
 });

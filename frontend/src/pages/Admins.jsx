@@ -1,3 +1,6 @@
+/**
+ * Admins.jsx — Comptes administrateurs : liste et création par un admin connecté.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge } from '../components/Badge';
@@ -13,13 +16,15 @@ const FORM_VIDE = {
 };
 
 export default function Admins() {
-  const [liste, setListe] = useState([]);
+  const [liste, setListe] = useState([]); // comptes GET /api/auth/admins
+  // Formulaire nouveau compte admin (réservé à un admin connecté)
   const [form, setForm] = useState(null);
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
   const [chargement, setChargement] = useState(false);
 
   async function charger() {
+    // Liste des comptes GET /api/auth/admins
     setListe(await apiAdmins());
   }
 
@@ -27,6 +32,7 @@ export default function Admins() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // POST /api/auth/admins avec validation mot de passe
   async function enregistrer(e) {
     e.preventDefault();
     setErreur('');
@@ -53,6 +59,8 @@ export default function Admins() {
       <PageHeader
         titre="Administrateurs"
         sousTitre="Chaque compte a son e-mail : connexion par code + alertes"
+        pdfCible="#zone-pdf"
+        pdfNom="admins"
         actions={
           !form ? (
             <button
@@ -148,7 +156,7 @@ export default function Admins() {
         </form>
       ) : null}
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead>
             <tr>

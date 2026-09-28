@@ -1,3 +1,7 @@
+/**
+ * routes/ventes.js — Validation ventes : stock, facture, paiement initial optionnel.
+ * Préfixe API : /api/ventes
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -12,6 +16,7 @@ const {
 const router = express.Router();
 router.use(authentifier);
 
+/** Valide le panier vente (ids produits, quantités, prix). */
 function normaliserLignes(lignes) {
   if (!Array.isArray(lignes) || lignes.length === 0) {
     throw Object.assign(new Error('Le panier est vide.'), { status: 400 });
@@ -51,6 +56,7 @@ function normaliserLignes(lignes) {
   });
 }
 
+/** GET / — 200 dernières ventes avec client. */
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
@@ -67,6 +73,7 @@ router.get(
   })
 );
 
+/** GET /:id — Vente et lignes_vente. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -278,4 +285,5 @@ router.post(
   })
 );
 
+/** Router ventes → /api/ventes */
 module.exports = router;

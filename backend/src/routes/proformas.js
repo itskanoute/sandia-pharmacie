@@ -1,3 +1,7 @@
+/**
+ * routes/proformas.js — Devis (pro forma) et conversion en vente/facture.
+ * Préfixe API : /api/proformas
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -7,6 +11,7 @@ const { prochainNumero } = require('../utils/numeros');
 const router = express.Router();
 router.use(authentifier);
 
+/** Charge proforma + lignes (forme/dosage depuis médicament si présent). */
 async function chargerProforma(id) {
   const [rows] = await pool.execute(
     `SELECT p.*, c.nom AS client_nom, c.telephone AS client_telephone
@@ -30,6 +35,7 @@ async function chargerProforma(id) {
   return { ...rows[0], lignes };
 }
 
+/** Contrôle des lignes pro forma (sans exiger medicament_id pour devis libres). */
 function normaliserLignes(lignes) {
   if (!Array.isArray(lignes) || lignes.length === 0) {
     throw Object.assign(new Error('Au moins une ligne produit est obligatoire.'), { status: 400 });
@@ -61,6 +67,7 @@ function normaliserLignes(lignes) {
   });
 }
 
+/** GET / — Liste pro formas, filtre statut optionnel. */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -83,6 +90,7 @@ router.get(
   })
 );
 
+/** GET /:id — Détail pro forma. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -92,6 +100,7 @@ router.get(
   })
 );
 
+/** POST / — Création PF-* en transaction (séquence + lignes). */
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -157,6 +166,7 @@ router.post(
   })
 );
 
+/** PUT /:id — Modification interdite si annulé ou déjà converti en vente. */
 router.put(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -444,4 +454,5 @@ router.post(
   })
 );
 
+/** Router pro formas → /api/proformas */
 module.exports = router;

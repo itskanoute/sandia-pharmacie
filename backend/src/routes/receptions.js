@@ -1,3 +1,7 @@
+/**
+ * routes/receptions.js — Réceptions de commandes et entrée en stock (lots / appareils).
+ * Préfixe API : /api/receptions
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -7,6 +11,7 @@ const { prochainNumero } = require('../utils/numeros');
 const router = express.Router();
 router.use(authentifier);
 
+/** Initialise la séquence REC-* si besoin. */
 async function assurerSequence(connection, code, prefixe) {
   await connection.execute(
     `INSERT IGNORE INTO sequences_numerotation (code, prefixe, prochain_numero)
@@ -15,6 +20,7 @@ async function assurerSequence(connection, code, prefixe) {
   );
 }
 
+/** En-tête réception + lignes_reception. */
 async function chargerReception(id) {
   const [rows] = await pool.execute(
     `SELECT r.*, c.numero AS commande_numero, f.nom AS fournisseur_nom
@@ -32,6 +38,7 @@ async function chargerReception(id) {
   return { ...rows[0], lignes };
 }
 
+/** GET / — Liste des réceptions liées aux commandes. */
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
@@ -47,6 +54,7 @@ router.get(
   })
 );
 
+/** GET /:id — Détail réception. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -276,4 +284,5 @@ router.post(
   })
 );
 
+/** Router réceptions → /api/receptions */
 module.exports = router;

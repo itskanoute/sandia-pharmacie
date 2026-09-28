@@ -1,51 +1,21 @@
 /**
- * Impression / téléchargement document commercial (facture, pro forma).
+ * Facade pour les documents commerciaux (facture, pro forma) :
+ * impression navigateur ou téléchargement PDF via exportPdf.
  */
+import { telechargerPdf } from './exportPdf';
 
+// Ouvre la boîte de dialogue d’impression du navigateur (CSS @media print)
 export function imprimerDocument() {
   window.print();
 }
 
-/** Télécharge le document affiché en fichier HTML (ouvrable / imprimable PDF). */
-export function telechargerDocumentHtml(elementId, nomFichier) {
-  const el = document.getElementById(elementId);
-  if (!el) {
-    throw new Error('Document introuvable à télécharger.');
-  }
+/** Télécharge un vrai fichier .pdf du document affiché (id DOM ou sélecteur). */
+export async function telechargerDocumentPdf(elementId, nomFichier) {
+  // Délègue la capture html2canvas + jsPDF
+  await telechargerPdf(elementId, nomFichier || 'document');
+}
 
-  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map((node) => {
-      if (node.tagName === 'STYLE') return node.outerHTML;
-      if (node.href) return `<link rel="stylesheet" href="${node.href}" />`;
-      return '';
-    })
-    .join('\n');
-
-  const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <title>${nomFichier}</title>
-  ${styles}
-  <style>
-    body { background: #fff; margin: 0; padding: 16px; }
-    .no-print { display: none !important; }
-    .doc-sandia { box-shadow: none !important; border: none !important; max-width: 100% !important; }
-  </style>
-</head>
-<body>
-  ${el.outerHTML}
-  <script>window.onload = function () { /* prêt pour impression PDF */ };</script>
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${nomFichier}.html`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+/** @deprecated préfère telechargerDocumentPdf — alias conservé pour compatibilité pages */
+export async function telechargerDocumentHtml(elementId, nomFichier) {
+  return telechargerDocumentPdf(elementId, nomFichier);
 }

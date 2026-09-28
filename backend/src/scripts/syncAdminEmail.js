@@ -1,3 +1,7 @@
+/**
+ * scripts/syncAdminEmail.js — Synchronise l’e-mail du compte admin avec ADMIN_EMAIL (.env).
+ * Appelé au démarrage du serveur.
+ */
 require('dotenv').config();
 const { pool } = require('../config/db');
 
@@ -36,4 +40,5 @@ async function synchroniserEmailAdmin() {
   }
 }
 
+/** Export pour server.js (démarrage). */
 module.exports = { synchroniserEmailAdmin };

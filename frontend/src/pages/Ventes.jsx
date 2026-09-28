@@ -1,26 +1,32 @@
+/**
+ * Ventes.jsx — Point de vente : panier, paiement et historique des ventes.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { apiClients, apiCreerVente, apiMedicaments, apiVentes } from '../api';
 import { formatDateHeure, formatFcfa } from '../utils/format';
 
+// Moyens de paiement proposés à la caisse (alignés documents commerciaux)
 const MOYENS = ['Espèce', 'Orange Money', 'Moov Money', 'Wave', 'Chèque', 'Virement'];
 
 export default function Ventes() {
-  const [clients, setClients] = useState([]);
-  const [medicaments, setMedicaments] = useState([]);
-  const [historique, setHistorique] = useState([]);
-  const [typeClient, setTypeClient] = useState('ordinaire');
-  const [clientId, setClientId] = useState('');
-  const [recherche, setRecherche] = useState('');
-  const [panier, setPanier] = useState([]);
-  const [montantPaye, setMontantPaye] = useState('');
+  // Point de vente : catalogue, panier et encaissement
+  const [clients, setClients] = useState([]); // pour select client
+  const [medicaments, setMedicaments] = useState([]); // catalogue caisse
+  const [historique, setHistorique] = useState([]); // ventes passées
+  const [typeClient, setTypeClient] = useState('ordinaire'); // ordinaire | revendeur
+  const [clientId, setClientId] = useState(''); // optionnel
+  const [recherche, setRecherche] = useState(''); // filtre produits
+  const [panier, setPanier] = useState([]); // lignes avant validation
+  const [montantPaye, setMontantPaye] = useState(''); // vide = payer le total
   const [moyenPaiement, setMoyenPaiement] = useState('Espèce');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(''); // succès validation
   const [erreur, setErreur] = useState('');
-  const [derniereFacture, setDerniereFacture] = useState(null);
-  const [chargement, setChargement] = useState(false);
+  const [derniereFacture, setDerniereFacture] = useState(null); // lien post-vente
+  const [chargement, setChargement] = useState(false); // POST /api/ventes
 
+  // Triple chargement parallèle : clients, catalogue, historique ventes
   async function charger() {
     const [c, m, v] = await Promise.all([apiClients(), apiMedicaments(), apiVentes()]);
     setClients(c);
@@ -29,10 +35,12 @@ export default function Ventes() {
     if (!clientId && c[0]) setClientId(String(c[0].id));
   }
 
+  // Initialisation page caisse au montage
   useEffect(() => {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // Clients compatibles avec le type tarifaire sélectionné
   const clientsFiltres = useMemo(
     () => clients.filter((c) => c.type_client === typeClient),
     [clients, typeClient]
@@ -54,6 +62,7 @@ export default function Ventes() {
     [medicaments]
   );
 
+  // Prix unitaire client ordinaire vs revendeur
   function prixPour(p) {
     return typeClient === 'revendeur' ? Number(p.prix_revendeur) : Number(p.prix_client);
   }
@@ -86,6 +95,7 @@ export default function Ventes() {
     }
   }
 
+  // Ajoute au panier en vérifiant le stock disponible
   function ajouter(produit) {
     const stock = Number(produit.stock_disponible);
     if (stock <= 0) {
@@ -118,8 +128,10 @@ export default function Ventes() {
     });
   }
 
+  // Total TTC du panier (recalculé à chaque rendu)
   const total = panier.reduce((s, l) => s + l.prix * l.quantite, 0);
 
+  // POST /api/ventes : décrémente le stock et génère la facture
   async function validerVente() {
     if (!panier.length) return;
     if (!moyenPaiement) {
@@ -170,6 +182,8 @@ export default function Ventes() {
       <PageHeader
         titre="Ventes"
         sousTitre="Panier · validation · facture · stock"
+        pdfCible="#zone-pdf"
+        pdfNom="ventes"
         actions={
           <Link to="/revendeurs" className="bouton-secondaire">
             Espace Revendeurs
@@ -204,6 +218,8 @@ export default function Ventes() {
         </div>
       ) : null}
 
+      <div id="zone-pdf">
+      {/* Interface caisse : sélection client, produits, panier */}
       <div className="caisse-grid">
         <div>
           <div className="barre-outils">
@@ -348,10 +364,12 @@ export default function Ventes() {
           </tbody>
         </table>
       </div>
+      </div>
     </div>
   );
 }
 
+// Texte court après validation (payée, reste dû, impayée)
 function libelleReste(facture) {
   if (facture.statut_paiement === 'paye') return 'Payée';
   if (facture.statut_paiement === 'partiellement_paye') {

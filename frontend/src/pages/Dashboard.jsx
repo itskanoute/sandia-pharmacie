@@ -1,3 +1,6 @@
+/**
+ * Dashboard.jsx — Tableau de bord : indicateurs clés, alertes récentes et raccourcis.
+ */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -6,17 +9,20 @@ import { apiDashboard, getUtilisateurStocke } from '../api';
 import { formatDate, formatFcfa } from '../utils/format';
 
 export default function Dashboard() {
-  const [data, setData] = useState(null);
+  // Agrégats renvoyés par GET /api/stats/dashboard
+  const [data, setData] = useState(null); // KPI + alertes dashboard
   const [erreur, setErreur] = useState('');
-  const utilisateur = getUtilisateurStocke();
+  const utilisateur = getUtilisateurStocke(); // prénom accueil (cache local)
   const prenom = utilisateur?.nom_complet || utilisateur?.nom_utilisateur || 'Administrateur';
 
+  // Chargement unique des indicateurs au montage
   useEffect(() => {
     apiDashboard()
       .then(setData)
       .catch((e) => setErreur(e.message));
   }, []);
 
+  // Affichage d’erreur si l’API dashboard échoue
   if (erreur) {
     return (
       <div className="page">
@@ -35,6 +41,7 @@ export default function Dashboard() {
     );
   }
 
+  // Compteurs pour le bandeau d’alertes et les listes
   const nbStock = (data.alertes_stock || []).length;
   const nbPeremp = (data.alertes_peremption || []).length;
   const nbDettes = (data.dettes_recentes || []).length;
@@ -45,6 +52,8 @@ export default function Dashboard() {
       <PageHeader
         titre={`Bonjour, ${prenom}`}
         sousTitre="Vue commune SAN-DIA — tous les admins voient les mêmes chiffres de la pharmacie"
+        pdfCible="#zone-pdf"
+        pdfNom="dashboard"
       />
 
       <p className="message-info">
@@ -69,6 +78,8 @@ export default function Dashboard() {
         </p>
       )}
 
+      <div id="zone-pdf">
+      {/* Indicateurs chiffrés exportables en PDF */}
       <div className="kpi-grid">
         <div className="kpi">
           <span>Encaissements</span>
@@ -144,6 +155,7 @@ export default function Dashboard() {
         </ul>
         <Link to="/dettes">Gérer les dettes</Link>
       </section>
+      </div>
     </div>
   );
 }

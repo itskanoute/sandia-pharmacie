@@ -1,19 +1,25 @@
+/**
+ * Parametres.jsx — Identité de la pharmacie, coordonnées et options de facturation.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { apiMajParametres, apiParametres } from '../api';
 import { SANDIA_DEFAUT } from '../data/sandia';
 
 export default function Parametres() {
-  const [form, setForm] = useState(null);
-  const [message, setMessage] = useState('');
+  // Objet paramètres fusionné avec SANDIA_DEFAUT
+  const [form, setForm] = useState(null); // champs identité pharmacie
+  const [message, setMessage] = useState(''); // succès enregistrement
   const [erreur, setErreur] = useState('');
 
+  // Lecture des paramètres pharmacie au montage
   useEffect(() => {
     apiParametres()
       .then((data) => setForm({ ...SANDIA_DEFAUT, ...data }))
       .catch((e) => setErreur(e.message));
   }, []);
 
+  // PUT /api/parametres — identité et seuils d’alerte
   async function enregistrer(e) {
     e.preventDefault();
     try {

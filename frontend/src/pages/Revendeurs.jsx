@@ -1,3 +1,6 @@
+/**
+ * Revendeurs.jsx — Revendeurs : liste, création, ventes au tarif revendeur et dettes.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -14,21 +17,15 @@ import { formatDateHeure, formatFcfa } from '../utils/format';
 
 const MOYENS = ['Espèce', 'Orange Money', 'Moov Money', 'Wave', 'Chèque', 'Virement'];
 
-/**
- * Espace dédié aux revendeurs :
- * - liste des revendeurs
- * - création rapide
- * - vente au prix revendeur (automatique)
- * - dettes du revendeur sélectionné
- */
 export default function Revendeurs() {
-  const [revendeurs, setRevendeurs] = useState([]);
+  // Parcours vente dédié aux clients revendeurs (tarif prix_revendeur)
+  const [revendeurs, setRevendeurs] = useState([]); // clients type revendeur
   const [medicaments, setMedicaments] = useState([]);
-  const [historique, setHistorique] = useState([]);
-  const [dettes, setDettes] = useState([]);
-  const [clientId, setClientId] = useState('');
+  const [historique, setHistorique] = useState([]); // ventes revendeur uniquement
+  const [dettes, setDettes] = useState([]); // dettes du revendeur sélectionné
+  const [clientId, setClientId] = useState(''); // revendeur actif caisse
   const [recherche, setRecherche] = useState('');
-  const [panier, setPanier] = useState([]);
+  const [panier, setPanier] = useState([]); // lignes vente en cours
   const [montantPaye, setMontantPaye] = useState('');
   const [moyenPaiement, setMoyenPaiement] = useState('Espèce');
   const [nouveau, setNouveau] = useState(null);
@@ -52,6 +49,7 @@ export default function Revendeurs() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // Dettes du revendeur sélectionné
   useEffect(() => {
     if (!clientId) {
       setDettes([]);
@@ -114,6 +112,7 @@ export default function Revendeurs() {
 
   const total = panier.reduce((s, l) => s + l.prix * l.quantite, 0);
 
+  // Enregistre la vente revendeur (même API que la page Ventes)
   async function valider() {
     if (!clientId) {
       setErreur('Choisissez un revendeur.');
@@ -181,6 +180,8 @@ export default function Revendeurs() {
       <PageHeader
         titre="Revendeurs"
         sousTitre="Vente au prix revendeur · clients professionnels"
+        pdfCible="#zone-pdf"
+        pdfNom="revendeurs"
         actions={
           <button
             type="button"
@@ -247,6 +248,7 @@ export default function Revendeurs() {
         </div>
       ) : null}
 
+      <div id="zone-pdf">
       <div className="caisse-grid">
         <div>
           <div className="barre-outils">
@@ -458,6 +460,7 @@ export default function Revendeurs() {
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

@@ -1,3 +1,7 @@
+/**
+ * routes/paiements.js — Enregistrement des encaissements sur factures (dettes).
+ * Préfixe API : /api/paiements
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -9,6 +13,7 @@ const { chargerFacture } = require('../services/facturesService');
 const router = express.Router();
 router.use(authentifier);
 
+/** GET / — Historique paiements (filtres facture_id, client_id), max 300. */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -59,6 +64,7 @@ router.post(
     try {
       await connection.beginTransaction();
 
+      // Verrouillage ligne facture pour éviter double paiement concurrent
       const [facRows] = await connection.execute(
         `SELECT * FROM factures WHERE id = ? FOR UPDATE`,
         [factureId]
@@ -138,4 +144,5 @@ router.post(
   })
 );
 
+/** Router paiements → /api/paiements */
 module.exports = router;

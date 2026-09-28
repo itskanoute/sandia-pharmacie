@@ -1,12 +1,17 @@
+/**
+ * Fournisseurs.jsx — Répertoire des fournisseurs : création et mise à jour.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { apiCreerFournisseur, apiFournisseurs, apiMajFournisseur } from '../api';
 
 export default function Fournisseurs() {
-  const [liste, setListe] = useState([]);
+  const [liste, setListe] = useState([]); // répertoire fournisseurs
+  // Formulaire création / édition (null = fermé)
   const [form, setForm] = useState(null);
   const [erreur, setErreur] = useState('');
 
+  // Liste complète GET /api/fournisseurs
   async function charger() {
     setListe(await apiFournisseurs());
   }
@@ -15,6 +20,7 @@ export default function Fournisseurs() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // Crée ou met à jour selon présence de form.id
   async function enregistrer(e) {
     e.preventDefault();
     try {
@@ -31,6 +37,8 @@ export default function Fournisseurs() {
     <div className="page">
       <PageHeader
         titre="Fournisseurs"
+        pdfCible="#zone-pdf"
+        pdfNom="fournisseurs"
         actions={
           <button
             type="button"
@@ -65,7 +73,7 @@ export default function Fournisseurs() {
         </form>
       ) : null}
 
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead><tr><th>Nom</th><th>Téléphone</th><th>Contact</th><th></th></tr></thead>
           <tbody>

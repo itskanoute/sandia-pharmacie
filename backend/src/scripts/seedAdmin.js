@@ -1,15 +1,19 @@
+/**
+ * scripts/seedAdmin.js — Crée ou met à jour le compte admin depuis .env (npm run seed:admin).
+ */
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { pool, testConnection } = require('../config/db');
 
+/** Upsert utilisateur ADMIN (mot de passe hashé bcrypt). */
 async function seedAdmin() {
   const username = process.env.ADMIN_USERNAME || 'admin';
   const password = process.env.ADMIN_PASSWORD || 'Admin123!';
   const fullName = process.env.ADMIN_FULL_NAME || 'Administrateur';
   const email = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase() || null;
 
-  if (!password || password.length < 6) {
-    throw new Error('ADMIN_PASSWORD doit contenir au moins 6 caractères (.env).');
+  if (!password || password.length < 8) {
+    throw new Error('ADMIN_PASSWORD doit contenir au moins 8 caractères (.env).');
   }
 
   await testConnection();

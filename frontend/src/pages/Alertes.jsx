@@ -1,3 +1,6 @@
+/**
+ * Alertes.jsx — Stocks bas et péremption proche ; envoi de notifications par e-mail.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge } from '../components/Badge';
@@ -5,11 +8,13 @@ import { apiAlertes, apiNotifierAlertes } from '../api';
 import { formatDate, formatFcfa } from '../utils/format';
 
 export default function Alertes() {
+  // Payload /api/stats/alertes (stock, lots, péremption, dettes)
   const [data, setData] = useState(null);
   const [erreur, setErreur] = useState('');
   const [message, setMessage] = useState('');
-  const [envoi, setEnvoi] = useState(false);
+  const [envoi, setEnvoi] = useState(false); // bouton e-mail en cours
 
+  // Recharge toutes les listes d’alertes
   async function charger() {
     setData(await apiAlertes());
   }
@@ -18,6 +23,7 @@ export default function Alertes() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // POST /api/stats/alertes/notifier — e-mail à tous les admins
   async function envoyerParMail() {
     setEnvoi(true);
     setErreur('');
@@ -50,6 +56,8 @@ export default function Alertes() {
       <PageHeader
         titre="Alertes"
         sousTitre={`Péremption ${jours} j · lots ≤ ${seuilLot} · e-mails à tous les admins`}
+        pdfCible="#zone-pdf"
+        pdfNom="alertes"
         actions={
           <button
             type="button"
@@ -66,7 +74,8 @@ export default function Alertes() {
       {erreur ? <p className="message-erreur">{erreur}</p> : null}
 
       {!data ? null : (
-        <>
+        <div id="zone-pdf">
+          {/* Quatre tableaux : stock, lots bas, péremption, dettes */}
           <h3>Stock produit ≤ {seuilLot}</h3>
           <div className="table-wrap">
             <table>
@@ -202,7 +211,7 @@ export default function Alertes() {
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

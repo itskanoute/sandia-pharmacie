@@ -1,17 +1,21 @@
 /** Valeurs par défaut SAN-DIA (si la base n’est pas encore mise à jour). */
+
+// Constantes affichées sur factures / pro forma en l’absence de paramètres BDD
 export const SANDIA_DEFAUT = {
   nom_pharmacie: 'SAN-DIA DISTRIBUTION',
   activite: 'Matériels médicaux, réactifs de laboratoire, Commerce général',
   adresse: 'BAMAKO SEBENICORO CEMA 2',
-  telephone: '73 36 11 10 / 69 67 05 69',
+  telephone: '72 17 75 97 / 93 90 15 01',
   nina: '32409194667357E',
   nina_libelle: 'Mali -Bko 2024-A-10188 (NINA)',
   nif: '084148655C',
   centre_impots: 'Commune 4',
 };
 
+/** Fusionne les paramètres BDD avec les valeurs par défaut pour l’affichage document. */
 export function parametresAffichage(parametres) {
   const p = parametres || {};
+  // Chaque champ vide côté API est remplacé par la constante SAN-DIA
   return {
     ...SANDIA_DEFAUT,
     ...p,

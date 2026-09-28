@@ -1,3 +1,6 @@
+/**
+ * Factures.jsx — Factures : liste, détail, encaissements et export document.
+ */
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { Badge, libelleStatut, statutTone } from '../components/Badge';
@@ -15,8 +18,9 @@ import {
 } from '../utils/documentExport';
 
 export default function Factures() {
-  const [liste, setListe] = useState([]);
-  const [doc, setDoc] = useState(null);
+  const [liste, setListe] = useState([]); // toutes les factures
+  // Facture détaillée affichée (mode document)
+  const [doc, setDoc] = useState(null); // non null → vue DocumentCommercial
   const [parametres, setParametres] = useState(null);
   const [montant, setMontant] = useState('');
   const [erreur, setErreur] = useState('');
@@ -32,6 +36,7 @@ export default function Factures() {
     charger().catch((e) => setErreur(e.message));
   }, []);
 
+  // GET /api/factures/:id pour aperçu et PDF
   async function ouvrir(id) {
     try {
       setDoc(await apiFacture(id));
@@ -41,6 +46,7 @@ export default function Factures() {
     }
   }
 
+  // Encaissement partiel ou total sur la facture ouverte
   async function payer() {
     const m = Math.round(Number(montant));
     if (!doc || !m) return;
@@ -59,21 +65,20 @@ export default function Factures() {
     }
   }
 
-  function telechargerPdf() {
+  // Export PDF de la zone #document-facture-impression
+  async function telechargerPdf() {
     try {
-      telechargerDocumentHtml(
+      await telechargerDocumentHtml(
         'document-facture-impression',
         doc.numero || 'facture'
       );
-      setMessage(
-        'Fichier téléchargé. Dans la fenêtre d’impression : choisis « Enregistrer au format PDF » pour le client.'
-      );
-      setTimeout(() => imprimerDocument(), 400);
+      setMessage('PDF téléchargé.');
     } catch (e) {
       setErreur(e.message);
     }
   }
 
+  // Vue document : impression, PDF et paiement du solde (remplace la liste)
   if (doc) {
     return (
       <div className="page">
@@ -83,7 +88,7 @@ export default function Factures() {
           actions={
             <div className="actions-form no-print">
               <button type="button" className="bouton-principal" onClick={telechargerPdf}>
-                Télécharger / PDF
+                Télécharger PDF
               </button>
               <button type="button" className="bouton-secondaire" onClick={imprimerDocument}>
                 Imprimer
@@ -139,9 +144,11 @@ export default function Factures() {
       <PageHeader
         titre="Factures"
         sousTitre="Issues des ventes validées — téléchargeables pour les clients"
+        pdfCible="#zone-pdf"
+        pdfNom="liste-factures"
       />
       {erreur ? <p className="message-erreur">{erreur}</p> : null}
-      <div className="table-wrap">
+      <div className="table-wrap" id="zone-pdf">
         <table>
           <thead>
             <tr>

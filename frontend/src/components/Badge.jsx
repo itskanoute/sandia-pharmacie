@@ -1,8 +1,16 @@
+/**
+ * Composants utilitaires de badges : couleur et libellés des statuts métier.
+ */
+
+// Affiche une pastille colorée (stock, paiement, commande, etc.)
 export function Badge({ children, tone = 'neutre' }) {
+  // tone → classe CSS badge-ok | badge-attention | …
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
 
+// Convertit un code statut API en variante CSS (ok, attention, critique…)
 export function statutTone(statut) {
+  // Table de correspondance code métier → ton visuel
   const map = {
     actif: 'ok',
     disponible: 'ok',
@@ -33,9 +41,11 @@ export function statutTone(statut) {
     ordinaire: 'info',
     revendeur: 'ok',
   };
+  // Statut inconnu → pastille neutre
   return map[statut] || 'neutre';
 }
 
+// Libellé français lisible pour les tableaux et documents
 export function libelleStatut(statut) {
   const map = {
     actif: 'Actif',
@@ -70,5 +80,6 @@ export function libelleStatut(statut) {
     entree_reception: 'Entrée (réception)',
     sortie_vente: 'Sortie (vente)',
   };
+  // Fallback : afficher le code brut si non mappé
   return map[statut] || statut;
 }

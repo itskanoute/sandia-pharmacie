@@ -1,3 +1,7 @@
+/**
+ * routes/fournisseurs.js — CRUD fournisseurs (achats / commandes).
+ * Préfixe API : /api/fournisseurs
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
@@ -6,6 +10,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const router = express.Router();
 router.use(authentifier);
 
+/** GET / — Liste ; par défaut actifs uniquement ; recherche q sur nom/téléphone. */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -25,6 +30,7 @@ router.get(
   })
 );
 
+/** GET /:id — Fiche fournisseur. */
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -36,6 +42,7 @@ router.get(
   })
 );
 
+/** POST / — Création ; nom obligatoire. */
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -61,6 +68,7 @@ router.post(
   })
 );
 
+/** PUT /:id — Mise à jour complète + drapeau actif. */
 router.put(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -93,4 +101,5 @@ router.put(
   })
 );
 
+/** Router fournisseurs → /api/fournisseurs */
 module.exports = router;

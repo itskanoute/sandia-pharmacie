@@ -1,11 +1,42 @@
+/**
+ * routes/stats.js — Tableau de bord, finance, alertes et envoi e-mail manuel.
+ * Préfixe API : /api/stats
+ */
 const express = require('express');
 const { pool } = require('../config/db');
 const { authentifier } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
 
 const router = express.Router();
+
+/**
+ * Cron hébergement (sans JWT) : réveille Render et envoie les alertes péremption/stock.
+ * Header requis : x-cron-secret: <CRON_SECRET>
+ * Ex. cron-job.org → POST https://ton-app.onrender.com/api/stats/alertes/cron
+ */
+router.post(
+  '/alertes/cron',
+  asyncHandler(async (req, res) => {
+    const attendu = String(process.env.CRON_SECRET || '').trim();
+    const fourni = String(req.get('x-cron-secret') || req.query.secret || '').trim();
+    if (!attendu || fourni !== attendu) {
+      return res.status(401).json({ message: 'Non autorisé.' });
+    }
+    const { executerCycleAlertes } = require('../services/alertesScheduler');
+    const resultat = await executerCycleAlertes('cron');
+    res.json({
+      message:
+        resultat.mode === 'aucune'
+          ? 'Aucune alerte à envoyer.'
+          : `Alertes traitées (${resultat.details?.peremption || 0} péremption).`,
+      ...resultat,
+    });
+  })
+);
+
 router.use(authentifier);
 
+/** GET /dashboard — KPI CA, ventes, clients et top alertes (stock, péremption, dettes). */
 router.get(
   '/dashboard',
   asyncHandler(async (_req, res) => {
@@ -79,6 +110,7 @@ router.get(
   })
 );
 
+/** GET /finance — Agrégats factures et 50 derniers paiements. */
 router.get(
   '/finance',
   asyncHandler(async (_req, res) => {
@@ -115,6 +147,7 @@ router.get(
   })
 );
 
+/** GET /alertes — Jeu complet d’alertes (délègue à alertesService). */
 router.get(
   '/alertes',
   asyncHandler(async (_req, res) => {
@@ -139,7 +172,15 @@ router.post(
 
     if (resultat.mode === 'dev') {
       return res.json({
-        message: `Alertes préparées pour ${resultat.nb_destinataires || 1} admin(s) : ${resultat.admin_email} (SMTP non configuré : voir la console backend).`,
+        message: `Alertes préparées pour ${resultat.nb_destinataires || 1} admin(s) : ${resultat.admin_email} (e-mail non configuré : ajoute BREVO_API_KEY sur Render).`,
+        ...resultat,
+      });
+    }
+
+    if (resultat.mode === 'erreur' || resultat.envois?.every((e) => e.mode === 'erreur')) {
+      const detail = resultat.envois?.find((e) => e.erreur)?.erreur || 'échec d’envoi';
+      return res.status(502).json({
+        message: `Échec d’envoi des alertes : ${detail}`,
         ...resultat,
       });
     }
@@ -151,4 +192,5 @@ router.post(
   })
 );
 
+/** Router statistiques → /api/stats */
 module.exports = router;
