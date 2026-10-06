@@ -279,14 +279,16 @@ export default function Ventes() {
         <div className="panier-panel">
           <h3>Panier</h3>
           {panier.length === 0 ? (
-            <p className="meta">Vide</p>
+            <p className="meta panier-vide">Vide — ajoute des produits depuis le catalogue</p>
           ) : (
             <ul className="liste-panier">
               {panier.map((l) => (
                 <li key={l.id}>
-                  <strong>{l.nom}</strong>
-                  <div className="meta">
-                    {l.quantite} × {formatFcfa(l.prix)} = {formatFcfa(l.prix * l.quantite)}
+                  <div className="panier-ligne-info">
+                    <strong>{l.nom}</strong>
+                    <div className="meta">
+                      {l.quantite} × {formatFcfa(l.prix)} = {formatFcfa(l.prix * l.quantite)}
+                    </div>
                   </div>
                   <input
                     className="input-qte"
@@ -294,6 +296,7 @@ export default function Ventes() {
                     min="1"
                     max={l.stock}
                     value={l.quantite}
+                    aria-label={`Quantité ${l.nom}`}
                     onChange={(e) =>
                       setPanier((prev) =>
                         prev
@@ -316,29 +319,37 @@ export default function Ventes() {
               ))}
             </ul>
           )}
-          <p><strong>Total : {formatFcfa(total)}</strong></p>
-          <label>
-            Moyen de paiement
-            <select value={moyenPaiement} onChange={(e) => setMoyenPaiement(e.target.value)}>
-              {MOYENS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Montant payé maintenant
-            <input
-              type="number"
-              min="0"
-              max={total}
-              placeholder={String(total)}
-              value={montantPaye}
-              onChange={(e) => setMontantPaye(e.target.value)}
-            />
-          </label>
+
+          <div className="panier-total">
+            <span>Total</span>
+            <strong>{formatFcfa(total)}</strong>
+          </div>
+
+          <div className="panier-paiement">
+            <label>
+              Moyen de paiement
+              <select value={moyenPaiement} onChange={(e) => setMoyenPaiement(e.target.value)}>
+                {MOYENS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Montant payé maintenant
+              <input
+                type="number"
+                min="0"
+                max={total}
+                placeholder={String(total)}
+                value={montantPaye}
+                onChange={(e) => setMontantPaye(e.target.value)}
+              />
+            </label>
+          </div>
+
           <button
             type="button"
-            className="bouton-principal"
+            className="bouton-principal panier-valider"
             disabled={!panier.length || chargement}
             onClick={validerVente}
           >

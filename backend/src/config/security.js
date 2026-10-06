@@ -15,14 +15,14 @@ function autoriseCodeDev() {
 }
 
 /**
- * Refuse de démarrer en prod si JWT_SECRET absent / trop faible / valeur d’exemple.
+ * Refuse de démarrer en prod si JWT_SECRET absent / trop court / valeur d’exemple.
+ * (Ne bloque pas un secret aléatoire qui contiendrait par hasard le mot « secret ».)
  */
 function assertJwtSecret() {
   const secret = String(process.env.JWT_SECRET || '').trim();
-  const faible =
-    !secret ||
-    secret.length < 24 ||
-    /change-moi|secret|password|123456/i.test(secret);
+  const exempleConnu =
+    /change-moi|pharmacie-mali-secret|jwt_secret_here|your[-_]?secret/i.test(secret);
+  const faible = !secret || secret.length < 24 || exempleConnu;
 
   if (faible) {
     const msg =

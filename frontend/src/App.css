@@ -788,6 +788,142 @@ tfoot td {
   box-shadow: var(--ombre);
 }
 
+.panier-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  border-top: 3px solid var(--vert);
+  min-width: 0;
+}
+
+.panier-panel > h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--texte);
+}
+
+.panier-vide {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  background: #f4f8f6;
+  border-radius: 8px;
+  border: 1px dashed var(--bordure);
+}
+
+.panier-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  background: #e7f3ed;
+  border-radius: 10px;
+  border: 1px solid #cfe5d9;
+}
+
+.panier-total span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.panier-total strong {
+  font-size: 1.15rem;
+  color: var(--vert-fonce);
+}
+
+.panier-paiement {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.panier-panel label,
+.panier-paiement label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.panier-panel label select,
+.panier-panel label input,
+.panier-paiement label select,
+.panier-paiement label input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-weight: 500;
+  color: var(--texte);
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  background: #fafcfb;
+}
+
+.panier-panel label select:focus,
+.panier-panel label input:focus,
+.panier-paiement label select:focus,
+.panier-paiement label input:focus {
+  outline: 2px solid rgba(15, 107, 76, 0.25);
+  border-color: var(--vert);
+  background: #fff;
+}
+
+.panier-valider {
+  width: 100%;
+  margin: 0;
+  position: static;
+}
+
+.panier-liens {
+  margin: 0;
+  text-align: center;
+}
+
+.liste-panier {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.liste-panier li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  background: #f7faf8;
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+}
+
+.panier-ligne-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.panier-ligne-info strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 560px) {
+  .panier-paiement {
+    grid-template-columns: 1fr;
+  }
+}
+
 .carte-formulaire {
   border-top: 3px solid var(--vert);
 }
@@ -918,14 +1054,6 @@ tfoot td {
   margin-top: 0.35rem;
 }
 
-.liste-panier {
-  list-style: none;
-  margin: 0 0 1rem;
-  padding: 0;
-  display: grid;
-  gap: 0.5rem;
-}
-
 .deux-colonnes {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -966,8 +1094,11 @@ tfoot td {
   border-radius: 10px;
 }
 
-.input-qte {
+.liste-panier .input-qte {
   width: 72px;
+  flex-shrink: 0;
+  padding: 0.45rem 0.5rem;
+  text-align: center;
 }
 
 .total-caisse {
@@ -1486,9 +1617,8 @@ tfoot td {
   }
 
   .panier-panel {
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
+    position: relative;
+    z-index: 1;
   }
 
   .panneau-connexion {
